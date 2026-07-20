@@ -47,3 +47,37 @@ export async function clearQueue() {
   if (!res.ok) throw new Error('Failed to clear queue');
   return res.json();
 }
+
+export async function fetchCalendarPatients() {
+  const res = await fetch(`${API_BASE}/calendar`);
+  if (!res.ok) throw new Error('Failed to fetch calendar patients');
+  return res.json();
+}
+
+export async function addCalendarPatient(data) {
+  const res = await fetch(`${API_BASE}/calendar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to add calendar patient');
+  return res.json();
+}
+
+export async function updateCalendarPatient(id, data) {
+  const res = await fetch(`${API_BASE}/calendar/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to update calendar patient');
+  return res.json();
+}
+
+export async function deleteCalendarPatient(id) {
+  const res = await fetch(`${API_BASE}/calendar/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete calendar patient');
+  return res.json();
+}

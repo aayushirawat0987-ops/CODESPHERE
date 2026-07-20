@@ -3,7 +3,8 @@ import Header from './components/Header';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
 import OverrideModal from './components/OverrideModal';
-import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue } from './api';
+import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
+import CalendarView from './components/CalendarView';
 import './App.css';
 
 export default function App() {
@@ -14,6 +15,9 @@ export default function App() {
   const [overridePatient, setOverridePatient] = useState(null);
   const [lastUpdated, setLastUpdated] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
+  
+  const [currentView, setCurrentView] = useState('triage'); // 'triage' or 'calendar'
+  const [calendarPatients, setCalendarPatients] = useState([]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -33,12 +37,21 @@ export default function App() {
     }
   }, []);
 
-  // Real-time polling queue every 3 seconds
+  const loadCalendarPatients = useCallback(async () => {
+    try {
+      const data = await fetchCalendarPatients();
+      setCalendarPatients(data);
+    } catch (err) {
+      console.error('Failed fetching calendar patients:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadPatients();
+    loadCalendarPatients();
     const interval = setInterval(loadPatients, 3000);
     return () => clearInterval(interval);
-  }, [loadPatients]);
+  }, [loadPatients, loadCalendarPatients]);
 
   const handleIntakeSubmit = async (patientData, resetForm) => {
     setIsLoadingIntake(true);
@@ -105,25 +118,34 @@ export default function App() {
         onClearQueue={handleClearQueue}
         isSurging={isSurging}
         isRefreshing={isRefreshing}
+        currentView={currentView}
+        onViewChange={setCurrentView}
       />
 
       {/* Main Grid Workspace */}
       <main className="main-content">
-        <div className="grid-layout">
-          {/* Left Column: Patient Intake Form */}
-          <aside className="column-intake">
-            <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
-          </aside>
+        {currentView === 'triage' ? (
+          <div className="grid-layout">
+            {/* Left Column: Patient Intake Form */}
+            <aside className="column-intake">
+              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+            </aside>
 
-          {/* Right Column: Live Nurse Dashboard */}
-          <section className="column-dashboard">
-            <NurseDashboard
-              patients={patients}
-              onOpenOverride={(p) => setOverridePatient(p)}
-              lastUpdated={lastUpdated}
-            />
-          </section>
-        </div>
+            {/* Right Column: Live Nurse Dashboard */}
+            <section className="column-dashboard">
+              <NurseDashboard
+                patients={patients}
+                onOpenOverride={(p) => setOverridePatient(p)}
+                lastUpdated={lastUpdated}
+              />
+            </section>
+          </div>
+        ) : (
+          <CalendarView 
+            patients={calendarPatients} 
+            onPatientsUpdated={loadCalendarPatients} 
+          />
+        )}
       </main>
 
       {/* Staff Override Modal Dialog */}
