@@ -1,33 +1,33 @@
 /* Modern Clinical Dark Theme Design System - Professional Deep Slate & Navy Palette */
 :root {
-  --bg-main: #090d16;
-  --bg-card: #121929;
-  --bg-card-hover: #182238;
-  --border-color: #1e2b45;
-  --border-glow: #38bdf8;
+  --bg-main: #f0f7fa;
+  --bg-card: #ffffff;
+  --bg-card-hover: #eaf3f8;
+  --border-color: #cce0eb;
+  --border-glow: #0077b6;
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #0a2540;
+  --text-secondary: #304a6e;
+  --text-muted: #6b829c;
 
   --red-bg: rgba(239, 68, 68, 0.12);
   --red-border: #ef4444;
-  --red-text: #fca5a5;
+  --red-text: #b91c1c;
   --red-badge: #dc2626;
 
   --yellow-bg: rgba(245, 158, 11, 0.12);
   --yellow-border: #f59e0b;
-  --yellow-text: #fde047;
+  --yellow-text: #b45309;
   --yellow-badge: #d97706;
 
   --green-bg: rgba(16, 185, 129, 0.12);
   --green-border: #10b981;
-  --green-text: #6ee7b7;
+  --green-text: #047857;
   --green-badge: #059669;
 
-  --accent-cyan: #06b6d4;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
+  --accent-cyan: #0096c7;
+  --accent-blue: #005b9f;
+  --accent-purple: #4a90e2;
 
   --font-heading: 'Outfit', -apple-system, sans-serif;
   --font-body: 'Inter', -apple-system, sans-serif;
@@ -42,9 +42,9 @@
 body {
   background-color: var(--bg-main);
   background-image: 
-    radial-gradient(at 0% 0%, rgba(30, 58, 138, 0.22) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.9) 0px, transparent 50%),
-    radial-gradient(at 50% 20%, rgba(14, 165, 233, 0.05) 0px, transparent 65%);
+    radial-gradient(at 0% 0%, rgba(0, 91, 159, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(240, 247, 250, 0.9) 0px, transparent 50%),
+    radial-gradient(at 50% 20%, rgba(0, 150, 199, 0.08) 0px, transparent 65%);
   background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -66,7 +66,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 2rem;
-  background: rgba(18, 25, 41, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
@@ -83,15 +83,15 @@ body {
 .logo-icon {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #ef4444, #3b82f6);
+  background: linear-gradient(135deg, #0096c7, #005b9f);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 800;
-  color: #fff;
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(0, 150, 199, 0.4);
 }
 
 .brand-row {
@@ -137,7 +137,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #0f172a;
+  background: #f1f5f9;
   padding: 0.4rem 0.85rem;
   border-radius: 20px;
   border: 1px solid var(--border-color);
@@ -181,19 +181,19 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  background: linear-gradient(135deg, #0096c7, #005b9f);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 91, 159, 0.35);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  background: linear-gradient(135deg, #0077b6, #004c85);
   transform: translateY(-1px);
 }
 
 .btn-surge {
   background: linear-gradient(135deg, #d97706, #dc2626);
-  color: #fff;
+  color: #ffffff;
   box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
 }
 
@@ -215,7 +215,7 @@ body {
 
 .btn-warning {
   background: linear-gradient(135deg, #d97706, #b45309);
-  color: #fff;
+  color: #ffffff;
 }
 
 .btn-override-default {
@@ -259,7 +259,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 1.5rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
@@ -296,7 +296,7 @@ body {
   gap: 0.4rem;
   margin-bottom: 1.25rem;
   padding: 0.75rem;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(241, 245, 249, 0.6);
   border-radius: 8px;
   border: 1px dashed var(--border-color);
 }
@@ -309,7 +309,7 @@ body {
 }
 
 .btn-chip {
-  background: #1e293b;
+  background: #e2e8f0;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   padding: 0.25rem 0.6rem;
@@ -320,8 +320,8 @@ body {
 }
 
 .btn-chip:hover {
-  background: #334155;
-  color: #fff;
+  background: #cbd5e1;
+  color: #ffffff;
 }
 
 .form-group {
@@ -343,7 +343,7 @@ body {
 .input-field {
   width: 100%;
   padding: 0.65rem 0.85rem;
-  background: #0f172a;
+  background: #f1f5f9;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
@@ -425,9 +425,9 @@ body {
 }
 
 .queue-count-pill {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(0, 91, 159, 0.15);
+  color: #4a90e2;
+  border: 1px solid rgba(0, 91, 159, 0.3);
   padding: 0.2rem 0.6rem;
   border-radius: 12px;
   font-size: 0.8rem;
@@ -448,7 +448,7 @@ body {
 }
 
 .metric-card {
-  background: #0f172a;
+  background: #f1f5f9;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 0.85rem 1rem;
@@ -506,7 +506,7 @@ body {
 }
 
 .filter-btn {
-  background: #0f172a;
+  background: #f1f5f9;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   padding: 0.4rem 0.8rem;
@@ -517,8 +517,8 @@ body {
 }
 
 .filter-btn.active {
-  background: #1e293b;
-  color: #fff;
+  background: #e2e8f0;
+  color: #ffffff;
   border-color: var(--accent-cyan);
 }
 
@@ -543,8 +543,8 @@ body {
 }
 
 .patient-row:hover {
-  border-color: #334155;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* Row Severity Highlighting */
@@ -568,7 +568,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #0f172a;
+  background: #f1f5f9;
   padding: 0.6rem 0.4rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -644,7 +644,7 @@ body {
   font-size: 0.65rem;
   font-weight: 800;
   background: #d97706;
-  color: #fff;
+  color: #ffffff;
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
   margin-top: 0.35rem;
@@ -671,7 +671,7 @@ body {
 }
 
 .chip {
-  background: #0f172a;
+  background: #f1f5f9;
   border: 1px solid var(--border-color);
   padding: 0.15rem 0.5rem;
   border-radius: 6px;
@@ -701,7 +701,7 @@ body {
 .flags-header {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fca5a5;
+  color: #b91c1c;
   display: block;
   margin-bottom: 0.25rem;
 }
@@ -714,7 +714,7 @@ body {
 
 .red-flag-pill {
   background: rgba(220, 38, 38, 0.2);
-  color: #fca5a5;
+  color: #b91c1c;
   border: 1px solid rgba(239, 68, 68, 0.4);
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
@@ -724,7 +724,7 @@ body {
 
 /* Rationale Box */
 .rationale-box {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(241, 245, 249, 0.7);
   border-left: 3px solid var(--accent-cyan);
   padding: 0.6rem 0.85rem;
   border-radius: 0 6px 6px 0;
@@ -763,7 +763,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
@@ -778,7 +778,7 @@ body {
   width: 90%;
   max-width: 520px;
   padding: 1.75rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   animation: modalIn 0.2s ease-out;
 }
 
@@ -811,7 +811,7 @@ body {
 }
 
 .modal-patient-summary {
-  background: #0f172a;
+  background: #f1f5f9;
   border: 1px solid var(--border-color);
   padding: 0.85rem;
   border-radius: 8px;
@@ -827,7 +827,7 @@ body {
 }
 
 .score-btn {
-  background: #0f172a;
+  background: #f1f5f9;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 0.6rem 0;
@@ -837,9 +837,9 @@ body {
   cursor: pointer;
 }
 
-.score-btn.pick-red.active { background: var(--red-badge); color: #fff; border-color: var(--red-border); }
-.score-btn.pick-yellow.active { background: var(--yellow-badge); color: #fff; border-color: var(--yellow-border); }
-.score-btn.pick-green.active { background: var(--green-badge); color: #fff; border-color: var(--green-border); }
+.score-btn.pick-red.active { background: var(--red-badge); color: #ffffff; border-color: var(--red-border); }
+.score-btn.pick-yellow.active { background: var(--yellow-badge); color: #ffffff; border-color: var(--yellow-border); }
+.score-btn.pick-green.active { background: var(--green-badge); color: #ffffff; border-color: var(--green-border); }
 
 .modal-actions {
   display: flex;
@@ -853,12 +853,12 @@ body {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: #1e293b;
+  background: #e2e8f0;
   border: 1px solid var(--accent-cyan);
-  color: #fff;
+  color: #ffffff;
   padding: 0.85rem 1.5rem;
   border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   font-weight: 600;
   font-size: 0.875rem;
   z-index: 99;
@@ -868,8 +868,10 @@ body {
 .app-footer {
   text-align: center;
   padding: 1rem 2rem;
-  background: #070a12;
+  background: #f8fafc;
   border-top: 1px solid var(--border-color);
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+
