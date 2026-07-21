@@ -853,15 +853,26 @@ body {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: #e2e8f0;
+  background: linear-gradient(135deg, #0a2540, #163a5f);
   border: 1px solid var(--accent-cyan);
   color: #ffffff;
   padding: 0.85rem 1.5rem;
   border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
   font-weight: 600;
   font-size: 0.875rem;
   z-index: 99;
+  animation: slideInToast 0.3s ease-out;
+}
+
+@keyframes slideInToast {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Footer */

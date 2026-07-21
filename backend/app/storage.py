@@ -2,14 +2,20 @@
 In-Memory / Persistent Patient Triage Storage
 ---------------------------------------------
 Stores patient triage records and handles sorting, staff overrides, and queue management.
+CalendarStorage uses JSON file persistence to survive server restarts.
 """
 
 import uuid
+import json
+import os
 from datetime import datetime
 from typing import List, Dict, Optional
 import threading
 
 from app.models import PatientIntake, TriageReasoning, RuleCheckResult, PatientRecord, StaffOverride, OverrideRequest, CalendarPatient, CalendarPatientCreate
+
+# Path for persisting calendar data
+CALENDAR_DATA_FILE = os.path.join(os.path.dirname(__file__), "calendar_data.json")
 
 class PatientStorage:
     def __init__(self):
@@ -97,10 +103,37 @@ class PatientStorage:
 # Global storage singleton instance
 db = PatientStorage()
 
+
 class CalendarStorage:
+    """
+    Persistent calendar storage backed by a JSON file.
+    Survives server restarts — all CRUD operations are written to disk immediately.
+    """
     def __init__(self):
         self._lock = threading.Lock()
         self._patients: Dict[str, CalendarPatient] = {}
+        self._load_from_disk()
+
+    def _load_from_disk(self):
+        """Load existing calendar data from JSON file on startup."""
+        if os.path.exists(CALENDAR_DATA_FILE):
+            try:
+                with open(CALENDAR_DATA_FILE, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                    for item in raw:
+                        record = CalendarPatient(**item)
+                        self._patients[record.id] = record
+            except Exception as e:
+                print(f"[CalendarStorage] Warning: failed to load {CALENDAR_DATA_FILE}: {e}")
+
+    def _save_to_disk(self):
+        """Write current state to JSON file. Must be called while holding the lock."""
+        try:
+            data = [p.model_dump() for p in self._patients.values()]
+            with open(CALENDAR_DATA_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[CalendarStorage] Warning: failed to save {CALENDAR_DATA_FILE}: {e}")
 
     def add_patient(self, data: CalendarPatientCreate) -> CalendarPatient:
         with self._lock:
@@ -114,6 +147,7 @@ class CalendarStorage:
                 problem=data.problem
             )
             self._patients[patient_id] = record
+            self._save_to_disk()
             return record
 
     def get_all(self) -> List[CalendarPatient]:
@@ -133,13 +167,16 @@ class CalendarStorage:
                 problem=data.problem
             )
             self._patients[patient_id] = record
+            self._save_to_disk()
             return record
 
     def delete_patient(self, patient_id: str) -> bool:
         with self._lock:
             if patient_id in self._patients:
                 del self._patients[patient_id]
+                self._save_to_disk()
                 return True
             return False
+
 
 calendar_db = CalendarStorage()

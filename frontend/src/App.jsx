@@ -3,11 +3,17 @@ import Header from './components/Header';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
 import OverrideModal from './components/OverrideModal';
-import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import CalendarView from './components/CalendarView';
+import VoiceAnalyzer from './components/VoiceAnalyzer';
+import LandingPage from './components/LandingPage';
+import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
+  // 'landing' | 'triage' | 'calendar' | 'voice'
+  const [appState, setAppState] = useState('landing');
+  const [currentView, setCurrentView] = useState('triage');
+
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingIntake, setIsLoadingIntake] = useState(false);
@@ -15,8 +21,6 @@ export default function App() {
   const [overridePatient, setOverridePatient] = useState(null);
   const [lastUpdated, setLastUpdated] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
-  
-  const [currentView, setCurrentView] = useState('triage'); // 'triage' or 'calendar'
   const [calendarPatients, setCalendarPatients] = useState([]);
 
   const showToast = (msg) => {
@@ -47,11 +51,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (appState === 'landing') return;
     loadPatients();
     loadCalendarPatients();
     const interval = setInterval(loadPatients, 3000);
     return () => clearInterval(interval);
-  }, [loadPatients, loadCalendarPatients]);
+  }, [loadPatients, loadCalendarPatients, appState]);
 
   const handleIntakeSubmit = async (patientData, resetForm) => {
     setIsLoadingIntake(true);
@@ -72,7 +77,6 @@ export default function App() {
     try {
       await triggerSurge();
       showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
-      // Poll rapidly for 5 seconds to show patients arriving live
       let count = 0;
       const surgeInterval = setInterval(() => {
         loadPatients();
@@ -110,6 +114,20 @@ export default function App() {
     }
   };
 
+  const handleEnterDashboard = () => {
+    setAppState('dashboard');
+    setCurrentView('triage');
+  };
+
+  const handleViewChange = (view) => {
+    setCurrentView(view);
+  };
+
+  // Show landing if not entered yet
+  if (appState === 'landing') {
+    return <LandingPage onEnter={handleEnterDashboard} />;
+  }
+
   return (
     <div className="app-container">
       {/* Top Navigation Bar */}
@@ -119,19 +137,17 @@ export default function App() {
         isSurging={isSurging}
         isRefreshing={isRefreshing}
         currentView={currentView}
-        onViewChange={setCurrentView}
+        onViewChange={handleViewChange}
+        onGoHome={() => setAppState('landing')}
       />
 
       {/* Main Grid Workspace */}
       <main className="main-content">
-        {currentView === 'triage' ? (
+        {currentView === 'triage' && (
           <div className="grid-layout">
-            {/* Left Column: Patient Intake Form */}
             <aside className="column-intake">
               <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
             </aside>
-
-            {/* Right Column: Live Nurse Dashboard */}
             <section className="column-dashboard">
               <NurseDashboard
                 patients={patients}
@@ -140,11 +156,19 @@ export default function App() {
               />
             </section>
           </div>
-        ) : (
-          <CalendarView 
-            patients={calendarPatients} 
-            onPatientsUpdated={loadCalendarPatients} 
+        )}
+
+        {currentView === 'calendar' && (
+          <CalendarView
+            patients={calendarPatients}
+            onPatientsUpdated={loadCalendarPatients}
           />
+        )}
+
+        {currentView === 'voice' && (
+          <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <VoiceAnalyzer />
+          </div>
         )}
       </main>
 
@@ -167,7 +191,7 @@ export default function App() {
       {/* Clinical Disclaimer Footer */}
       <footer className="app-footer">
         <p>
-          <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION & TRIAGE STAFF SUPPORT ONLY.
+          <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
           NOT A DIAGNOSTIC MEDICAL DEVICE. Emergency clinicians maintain complete authority and final decision control at all times.
         </p>
       </footer>

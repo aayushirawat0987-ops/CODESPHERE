@@ -81,3 +81,13 @@ export async function deleteCalendarPatient(id) {
   if (!res.ok) throw new Error('Failed to delete calendar patient');
   return res.json();
 }
+
+export async function analyzeVoiceTranscript(transcript) {
+  const res = await fetch(`${API_BASE}/voice-analysis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcript })
+  });
+  if (!res.ok) throw new Error('Failed to analyze voice transcript');
+  return res.json();
+}

@@ -2,7 +2,8 @@
 Vitalis / TriageAI - FastAPI Application Entry Point
 ---------------------------------------------------
 Clinical Decision-Support Tool backend providing AI-driven intake evaluation,
-deterministic safety rule checks, staff override controls, and surge queue simulation.
+deterministic safety rule checks, staff override controls, surge queue simulation,
+and voice-based symptom analysis.
 """
 
 
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import time
 import logging
+from pydantic import BaseModel
 
 from app.models import PatientIntake, PatientRecord, OverrideRequest, Vitals, CalendarPatient, CalendarPatientCreate
 from app.rule_engine import evaluate_clinical_rules
@@ -147,4 +149,78 @@ def delete_calendar_patient(patient_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Patient not found")
     return {"status": "deleted"}
+
+
+# ─── Voice Analysis Endpoint ─────────────────────────────────────────────────
+
+class VoiceAnalysisRequest(BaseModel):
+    transcript: str
+
+class VoiceAnalysisResult(BaseModel):
+    detected_problem: str
+    severity: str        # "Critical", "High", "Moderate", "Low"
+    ai_score: int        # 1–10
+    keywords_found: List[str]
+    recommendations: List[str]
+    confidence: str      # "High", "Medium", "Low"
+
+# Keyword-to-problem mapping with severity levels
+VOICE_SYMPTOM_MAP = [
+    {"keywords": ["chest pain", "heart", "cardiac", "heart attack", "myocardial"], "problem": "Possible Cardiac Event", "severity": "Critical", "score": 10, "recs": ["Immediate ECG", "Cardiac enzyme panel", "Call cardiologist"]},
+    {"keywords": ["can't breathe", "difficulty breathing", "shortness of breath", "choking", "asthma", "respiratory"], "problem": "Respiratory Distress", "severity": "Critical", "score": 9, "recs": ["Check SpO2", "Administer O2", "Prep bronchodilator"]},
+    {"keywords": ["stroke", "can't speak", "face drooping", "numbness", "paralysis", "slurred"], "problem": "Possible Stroke / Neurological Event", "severity": "Critical", "score": 10, "recs": ["FAST assessment", "Immediate CT scan", "Neurology consult"]},
+    {"keywords": ["unconscious", "unresponsive", "fainted", "collapsed", "not waking"], "problem": "Loss of Consciousness", "severity": "Critical", "score": 10, "recs": ["Check airway", "GCS assessment", "IV access"]},
+    {"keywords": ["severe pain", "unbearable pain", "pain 10", "excruciating"], "problem": "Severe Pain Management", "severity": "High", "score": 8, "recs": ["Pain scale assessment", "Analgesic protocol", "Identify source"]},
+    {"keywords": ["bleeding", "hemorrhage", "blood loss", "wound", "laceration"], "problem": "Active Hemorrhage / Trauma", "severity": "High", "score": 8, "recs": ["Apply pressure", "Blood type & cross", "Surgical consult"]},
+    {"keywords": ["fever", "high temperature", "burning up", "chills", "sweating", "infection"], "problem": "Fever / Possible Infection", "severity": "Moderate", "score": 6, "recs": ["Temperature check", "CBC & culture", "Antipyretics"]},
+    {"keywords": ["vomiting", "nausea", "throwing up", "stomach", "abdominal pain", "belly pain"], "problem": "Gastrointestinal Distress", "severity": "Moderate", "score": 5, "recs": ["Abdominal exam", "Fluid balance", "GI workup if persistent"]},
+    {"keywords": ["headache", "migraine", "head pain", "pounding head"], "problem": "Headache / Possible Migraine", "severity": "Moderate", "score": 5, "recs": ["Neurological screen", "Blood pressure check", "Analgesics"]},
+    {"keywords": ["fracture", "broken bone", "can't move", "injury", "trauma", "fall", "accident"], "problem": "Musculoskeletal Injury / Fracture", "severity": "Moderate", "score": 6, "recs": ["X-ray", "Immobilize limb", "Pain management"]},
+    {"keywords": ["dizzy", "dizziness", "vertigo", "lightheaded", "balance"], "problem": "Dizziness / Vertigo", "severity": "Low", "score": 4, "recs": ["BP check", "ENT assessment", "Hydration status"]},
+    {"keywords": ["rash", "allergic", "itching", "swelling", "hives", "allergy"], "problem": "Allergic Reaction / Dermatological", "severity": "Moderate", "score": 6, "recs": ["Check for anaphylaxis", "Antihistamines", "EpiPen if severe"]},
+    {"keywords": ["cough", "cold", "sore throat", "runny nose", "sneezing"], "problem": "Upper Respiratory Illness", "severity": "Low", "score": 3, "recs": ["Symptomatic treatment", "Rest & fluids", "COVID screening if applicable"]},
+    {"keywords": ["anxiety", "panic", "stress", "mental", "depression", "suicidal", "harm"], "problem": "Mental Health Crisis", "severity": "High", "score": 7, "recs": ["Safe environment", "Psychiatric consult", "Risk assessment"]},
+    {"keywords": ["diabetes", "blood sugar", "insulin", "hypoglycemia", "hyperglycemia"], "problem": "Diabetic Emergency", "severity": "High", "score": 8, "recs": ["Blood glucose test", "IV dextrose or insulin", "Endocrinology"]},
+]
+
+@app.post("/api/voice-analysis", response_model=VoiceAnalysisResult)
+def analyze_voice_transcript(req: VoiceAnalysisRequest):
+    """
+    Analyzes a voice transcript for medical symptoms, returns problem detection
+    with severity level and AI score contribution.
+    """
+    text = req.transcript.lower()
+    
+    best_match = None
+    best_score = 0
+    all_keywords_found = []
+    
+    for entry in VOICE_SYMPTOM_MAP:
+        matched = [kw for kw in entry["keywords"] if kw in text]
+        if matched and len(matched) > best_score:
+            best_score = len(matched)
+            best_match = entry
+            all_keywords_found = matched
+    
+    if not best_match:
+        # Generic low-urgency response
+        return VoiceAnalysisResult(
+            detected_problem="General Complaint / Unspecified Symptoms",
+            severity="Low",
+            ai_score=2,
+            keywords_found=[],
+            recommendations=["Full clinical assessment needed", "Document patient history", "Nurse triage evaluation"],
+            confidence="Low"
+        )
+    
+    confidence = "High" if best_score >= 2 else "Medium"
+    
+    return VoiceAnalysisResult(
+        detected_problem=best_match["problem"],
+        severity=best_match["severity"],
+        ai_score=best_match["score"],
+        keywords_found=all_keywords_found,
+        recommendations=best_match["recs"],
+        confidence=confidence
+    )
 
