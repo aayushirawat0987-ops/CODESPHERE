@@ -11,10 +11,14 @@ from typing import List
 import time
 import logging
 
-from app.models import PatientIntake, PatientRecord, OverrideRequest, Vitals
+from app.models import (
+    PatientIntake, PatientRecord, OverrideRequest, Vitals,
+    CalendarPatientIntake, CalendarPatientRecord
+)
 from app.rule_engine import evaluate_clinical_rules
 from app.ai_engine import evaluate_patient_ai
-from app.storage import db
+from app.storage import db, calendar_db
+
 from app.surge_data import SURGE_PATIENTS
 
 logging.basicConfig(level=logging.INFO)
@@ -124,3 +128,38 @@ def clear_queue():
     """
     db.clear()
     return {"status": "Queue cleared"}
+
+@app.get("/api/calendar", response_model=List[CalendarPatientRecord])
+def get_calendar_patients():
+    """
+    Returns all calendar patient records.
+    """
+    return calendar_db.get_all_patients()
+
+@app.post("/api/calendar", response_model=CalendarPatientRecord, status_code=201)
+def add_calendar_patient(patient: CalendarPatientIntake):
+    """
+    Adds a new patient to the calendar database.
+    """
+    return calendar_db.add_patient(patient)
+
+@app.put("/api/calendar/{patient_id}", response_model=CalendarPatientRecord)
+def update_calendar_patient(patient_id: str, patient: CalendarPatientIntake):
+    """
+    Updates an existing calendar patient record.
+    """
+    updated = calendar_db.update_patient(patient_id, patient)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Calendar patient not found")
+    return updated
+
+@app.delete("/api/calendar/{patient_id}")
+def delete_calendar_patient(patient_id: str):
+    """
+    Deletes a calendar patient record.
+    """
+    success = calendar_db.delete_patient(patient_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Calendar patient not found")
+    return {"status": "success", "message": "Calendar patient deleted"}
+

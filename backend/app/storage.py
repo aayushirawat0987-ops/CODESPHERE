@@ -5,11 +5,17 @@ Stores patient triage records and handles sorting, staff overrides, and queue ma
 """
 
 import uuid
+import sqlite3
+import os
 from datetime import datetime
 from typing import List, Dict, Optional
 import threading
 
-from app.models import PatientIntake, TriageReasoning, RuleCheckResult, PatientRecord, StaffOverride, OverrideRequest
+from app.models import (
+    PatientIntake, TriageReasoning, RuleCheckResult, PatientRecord,
+    StaffOverride, OverrideRequest, CalendarPatientIntake, CalendarPatientRecord
+)
+
 
 class PatientStorage:
     def __init__(self):
@@ -95,3 +101,90 @@ class PatientStorage:
 
 # Global storage singleton instance
 db = PatientStorage()
+
+class CalendarStorage:
+    def __init__(self, db_path=None):
+        if db_path is None:
+            # Place calendar.db in the parent directory of this file (i.e. 'backend/calendar.db')
+            db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "calendar.db")
+        self.db_path = db_path
+        self._lock = threading.Lock()
+        self._init_db()
+
+    def _init_db(self):
+        with self._lock:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS calendar_patients (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        age INTEGER NOT NULL,
+                        gender TEXT NOT NULL,
+                        problem TEXT NOT NULL,
+                        date TEXT NOT NULL
+                    )
+                """)
+                conn.commit()
+
+    def add_patient(self, patient: CalendarPatientIntake) -> CalendarPatientRecord:
+        with self._lock:
+            patient_id = str(uuid.uuid4())[:8]
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO calendar_patients (id, name, age, gender, problem, date) VALUES (?, ?, ?, ?, ?, ?)",
+                    (patient_id, patient.name, patient.age, patient.gender, patient.problem, patient.date)
+                )
+                conn.commit()
+            return CalendarPatientRecord(
+                id=patient_id,
+                name=patient.name,
+                age=patient.age,
+                gender=patient.gender,
+                problem=patient.problem,
+                date=patient.date
+            )
+
+    def get_all_patients(self) -> List[CalendarPatientRecord]:
+        with self._lock:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, name, age, gender, problem, date FROM calendar_patients")
+                rows = cursor.fetchall()
+                return [
+                    CalendarPatientRecord(id=row[0], name=row[1], age=row[2], gender=row[3], problem=row[4], date=row[5])
+                    for row in rows
+                ]
+
+    def update_patient(self, patient_id: str, patient: CalendarPatientIntake) -> Optional[CalendarPatientRecord]:
+        with self._lock:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE calendar_patients SET name = ?, age = ?, gender = ?, problem = ?, date = ? WHERE id = ?",
+                    (patient.name, patient.age, patient.gender, patient.problem, patient.date, patient_id)
+                )
+                conn.commit()
+                if cursor.rowcount == 0:
+                    return None
+            return CalendarPatientRecord(
+                id=patient_id,
+                name=patient.name,
+                age=patient.age,
+                gender=patient.gender,
+                problem=patient.problem,
+                date=patient.date
+            )
+
+    def delete_patient(self, patient_id: str) -> bool:
+        with self._lock:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM calendar_patients WHERE id = ?", (patient_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+
+# Calendar database singleton instance
+calendar_db = CalendarStorage()
+

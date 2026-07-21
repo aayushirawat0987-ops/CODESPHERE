@@ -48,3 +48,19 @@ class OverrideRequest(BaseModel):
     score: int = Field(..., ge=1, le=10)
     reason: str = Field(...)
     staff_name: Optional[str] = "ER Nurse"
+
+class CalendarPatientIntake(BaseModel):
+    name: str = Field(..., description="Patient full name")
+    age: int = Field(..., ge=0, le=150, description="Patient age")
+    gender: str = Field(..., description="Patient gender")
+    problem: str = Field(..., description="One-word patient problem description")
+    date: str = Field(..., description="Date of appointment YYYY-MM-DD")
+
+class CalendarPatientRecord(BaseModel):
+    id: str
+    name: str
+    age: int
+    gender: str
+    problem: str
+    date: str
+
