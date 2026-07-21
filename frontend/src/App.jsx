@@ -10,7 +10,7 @@ import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, f
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'calendar' | 'voice'
+  // 'landing' | 'triage' | 'calendar' | 'voice' | 'patient'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
 
@@ -63,7 +63,7 @@ export default function App() {
     setIsLoadingIntake(true);
     try {
       const newRecord = await submitIntake(patientData);
-      showToast(`✅ Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
+      showToast(`Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
       resetForm();
       loadPatients();
       if (currentView === 'patient') {
@@ -80,7 +80,7 @@ export default function App() {
     setIsSurging(true);
     try {
       await triggerSurge();
-      showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
+      showToast('Surge simulation started! 9 patients entering triage queue...');
       let count = 0;
       const surgeInterval = setInterval(() => {
         loadPatients();
@@ -98,7 +98,7 @@ export default function App() {
     if (window.confirm('Clear all patient records from the queue?')) {
       try {
         await clearQueue();
-        showToast('🗑️ Triage queue cleared.');
+        showToast('Triage queue cleared.');
         loadPatients();
       } catch (err) {
         alert(`Error clearing queue: ${err.message}`);
@@ -110,7 +110,7 @@ export default function App() {
     if (!overridePatient) return;
     try {
       await applyOverride(overridePatient.id, overrideData);
-      showToast(`🔒 Staff override saved for ${overridePatient.name} (New Score: ${overrideData.score}/10)`);
+      showToast(`Staff override saved for ${overridePatient.name} (New Score: ${overrideData.score}/10)`);
       setOverridePatient(null);
       loadPatients();
     } catch (err) {
@@ -147,24 +147,21 @@ export default function App() {
 
       {/* Main Grid Workspace */}
       <main className="main-content">
-<<<<<<< HEAD
-        {currentView === 'triage' && (
-=======
         {currentView === 'patient' ? (
           patientSubmitted ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
               <div className="card" style={{ maxWidth: '550px', textAlign: 'center', padding: '2.5rem', boxShadow: '0 15px 35px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '4.5rem', marginBottom: '1.5rem', display: 'inline-block' }}>✅</div>
+                <div style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'inline-block', fontWeight: 800 }}>Done</div>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, marginBottom: '1rem', color: 'var(--green-text)' }}>Intake Submitted Successfully!</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-                  Thank you for registering. Your details have been submitted securely to the clinical triage queue. Please make your way to the waiting lounge—our medical team will call you shortly.
+                  Thank you for registering. Your details have been submitted securely to the clinical triage queue. Please make your way to the waiting lounge. Our medical team will call you shortly.
                 </p>
                 <button 
                   className="btn btn-primary" 
                   style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', justifyContent: 'center' }}
                   onClick={() => setPatientSubmitted(false)}
                 >
-                  ➕ Register Another Patient / New Intake
+                  Register Another Patient / New Intake
                 </button>
               </div>
             </div>
@@ -174,7 +171,6 @@ export default function App() {
             </div>
           )
         ) : currentView === 'triage' ? (
->>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7
           <div className="grid-layout">
             <aside className="column-intake">
               <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
@@ -187,7 +183,7 @@ export default function App() {
               />
             </section>
           </div>
-        )}
+        ) : null}
 
         {currentView === 'calendar' && (
           <CalendarView
@@ -222,7 +218,7 @@ export default function App() {
       {/* Clinical Disclaimer Footer */}
       <footer className="app-footer">
         <p>
-          <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
+          <strong>Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
           NOT A DIAGNOSTIC MEDICAL DEVICE. Emergency clinicians maintain complete authority and final decision control at all times.
         </p>
       </footer>
