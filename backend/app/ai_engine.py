@@ -201,4 +201,4 @@ Provide JSON triage decision-support object."""
 
     except Exception as e:
         logger.error(f"Claude API evaluation failed or returned malformed JSON: {e}")
-        return mock_triage_fallback(intake, f"AI Fallback active due to API parsing issue: {str(e)[:50]}")
+        return mock_triage_fallback(intake, f"AI Fallback active due to API parsing issue: {str(e)[:250]}")
