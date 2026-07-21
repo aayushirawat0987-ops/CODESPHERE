@@ -53,6 +53,18 @@ html { scroll-behavior: smooth; }
   text-decoration: none; transition: color 0.2s; position: relative;
 }
 .lp-nav-links a:hover { color: var(--med-blue); }
+.lp-nav-link-button {
+  background: transparent;
+  border: 0;
+  color: var(--med-gray);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0;
+  transition: color 0.2s;
+}
+.lp-nav-link-button:hover { color: var(--med-blue); }
 .lp-nav-cta {
   background: linear-gradient(135deg, var(--med-blue), var(--med-blue-dark));
   color: #fff; border: none; padding: 10px 24px; border-radius: 10px;
@@ -352,6 +364,17 @@ html { scroll-behavior: smooth; }
   transition: color 0.2s;
 }
 .lp-footer-links a:hover { color: var(--med-sky); }
+.lp-footer-link-button {
+  background: transparent;
+  border: 0;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0;
+  transition: color 0.2s;
+}
+.lp-footer-link-button:hover { color: var(--med-sky); }
 .lp-footer-copy {
   text-align: center; padding-top: 24px; font-size: 0.8rem; max-width: 1200px; margin: 0 auto;
   color: rgba(255,255,255,0.4);

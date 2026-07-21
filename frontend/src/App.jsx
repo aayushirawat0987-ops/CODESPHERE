@@ -5,14 +5,16 @@ import NurseDashboard from './components/NurseDashboard';
 import OverrideModal from './components/OverrideModal';
 import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
+import ContactPage from './components/ContactPage';
 import LandingPage from './components/LandingPage';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'calendar' | 'voice' | 'patient'
+  // 'landing' | 'triage' | 'calendar' | 'voice'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
+  const [showContactOnLanding, setShowContactOnLanding] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -63,7 +65,7 @@ export default function App() {
     setIsLoadingIntake(true);
     try {
       const newRecord = await submitIntake(patientData);
-      showToast(`Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
+      showToast(`✅ Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
       resetForm();
       loadPatients();
       if (currentView === 'patient') {
@@ -80,7 +82,7 @@ export default function App() {
     setIsSurging(true);
     try {
       await triggerSurge();
-      showToast('Surge simulation started! 9 patients entering triage queue...');
+      showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
       let count = 0;
       const surgeInterval = setInterval(() => {
         loadPatients();
@@ -98,7 +100,7 @@ export default function App() {
     if (window.confirm('Clear all patient records from the queue?')) {
       try {
         await clearQueue();
-        showToast('Triage queue cleared.');
+        showToast('🗑️ Triage queue cleared.');
         loadPatients();
       } catch (err) {
         alert(`Error clearing queue: ${err.message}`);
@@ -110,7 +112,7 @@ export default function App() {
     if (!overridePatient) return;
     try {
       await applyOverride(overridePatient.id, overrideData);
-      showToast(`Staff override saved for ${overridePatient.name} (New Score: ${overrideData.score}/10)`);
+      showToast(`🔒 Staff override saved for ${overridePatient.name} (New Score: ${overrideData.score}/10)`);
       setOverridePatient(null);
       loadPatients();
     } catch (err) {
@@ -129,7 +131,65 @@ export default function App() {
 
   // Show landing if not entered yet
   if (appState === 'landing') {
-    return <LandingPage onEnter={handleEnterDashboard} />;
+    return (
+      <>
+        <LandingPage 
+          onEnter={handleEnterDashboard}
+          onContact={() => setShowContactOnLanding(true)}
+        />
+        {showContactOnLanding && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              position: 'relative'
+            }}>
+              <button
+                onClick={() => setShowContactOnLanding(false)}
+                style={{
+                  position: 'sticky',
+                  top: '10px',
+                  right: '10px',
+                  float: 'right',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  zIndex: 1001,
+                  color: '#666'
+                }}
+              >
+                ✕
+              </button>
+              <div style={{ padding: '30px' }}>
+                <ContactPage
+                  onSubmitSuccess={(message) => {
+                    showToast(message);
+                    setTimeout(() => setShowContactOnLanding(false), 2000);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
@@ -147,30 +207,7 @@ export default function App() {
 
       {/* Main Grid Workspace */}
       <main className="main-content">
-        {currentView === 'patient' ? (
-          patientSubmitted ? (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-              <div className="card" style={{ maxWidth: '550px', textAlign: 'center', padding: '2.5rem', boxShadow: '0 15px 35px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'inline-block', fontWeight: 800 }}>Done</div>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, marginBottom: '1rem', color: 'var(--green-text)' }}>Intake Submitted Successfully!</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-                  Thank you for registering. Your details have been submitted securely to the clinical triage queue. Please make your way to the waiting lounge. Our medical team will call you shortly.
-                </p>
-                <button 
-                  className="btn btn-primary" 
-                  style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', justifyContent: 'center' }}
-                  onClick={() => setPatientSubmitted(false)}
-                >
-                  Register Another Patient / New Intake
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ maxWidth: '600px', margin: '1.5rem auto' }}>
-              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
-            </div>
-          )
-        ) : currentView === 'triage' ? (
+        {currentView === 'triage' && (
           <div className="grid-layout">
             <aside className="column-intake">
               <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
@@ -183,7 +220,7 @@ export default function App() {
               />
             </section>
           </div>
-        ) : null}
+        )}
 
         {currentView === 'calendar' && (
           <CalendarView
@@ -196,6 +233,12 @@ export default function App() {
           <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <VoiceAnalyzer />
           </div>
+        )}
+
+        {currentView === 'contact' && (
+          <ContactPage
+            onSubmitSuccess={(message) => showToast(message)}
+          />
         )}
       </main>
 
@@ -218,7 +261,7 @@ export default function App() {
       {/* Clinical Disclaimer Footer */}
       <footer className="app-footer">
         <p>
-          <strong>Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
+          <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
           NOT A DIAGNOSTIC MEDICAL DEVICE. Emergency clinicians maintain complete authority and final decision control at all times.
         </p>
       </footer>

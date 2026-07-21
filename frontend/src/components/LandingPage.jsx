@@ -117,7 +117,7 @@ function Wave({ from, to }) {
 }
 
 /* ══════════ MAIN COMPONENT ══════════ */
-export default function LandingPage({ onEnter }) {
+export default function LandingPage({ onEnter, onContact }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export default function LandingPage({ onEnter }) {
           <a href="#about">About</a>
           <a href="#features">Features</a>
           <a href="#stats">Impact</a>
-          <a href="#cta">Contact</a>
+          <button type="button" className="lp-nav-link-button" onClick={onContact}>Contact</button>
           <button className="lp-nav-cta" onClick={onEnter}>Open Dashboard {'\u2192'}</button>
         </div>
       </nav>
@@ -336,9 +336,9 @@ export default function LandingPage({ onEnter }) {
             <button className="lp-btn-primary" onClick={onEnter}>
               {'\uD83D\uDE80'} Launch System
             </button>
-            <a href="mailto:contact@triageai.health" className="lp-btn-secondary" style={{ textDecoration: 'none' }}>
+            <button className="lp-btn-secondary" onClick={onContact}>
               {'\u2709\uFE0F'} Contact Team
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -356,7 +356,7 @@ export default function LandingPage({ onEnter }) {
             <a href="#about">About</a>
             <a href="#features">Features</a>
             <a href="#privacy">Privacy Policy</a>
-            <a href="#cta">Contact</a>
+            <button type="button" className="lp-footer-link-button" onClick={onContact}>Contact</button>
             <a href="#terms">Terms of Use</a>
           </div>
         </div>

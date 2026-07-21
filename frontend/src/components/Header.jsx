@@ -69,6 +69,12 @@ export default function Header({
         >
           Patient Calendar
         </button>
+        <button
+          className={`btn ${currentView === 'contact' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('contact')}
+        >
+          Contact
+        </button>
       </div>
 
       <div className="header-actions">
