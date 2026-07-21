@@ -65,7 +65,9 @@ def process_patient_intake(intake: PatientIntake):
     rule_res = evaluate_clinical_rules(
         vitals=intake.vitals or Vitals(),
         pain_scale=intake.pain_scale,
-        complaint=intake.complaint
+        complaint=intake.complaint,
+        medical_history=intake.medical_history,
+        age=intake.age
     )
 
     # 2. AI Reasoning Engine evaluation
@@ -108,7 +110,13 @@ def run_surge_simulation_batch():
             pain_scale=int(p["pain_scale"]),
             vitals=vitals_obj
         )
-        rule_res = evaluate_clinical_rules(vitals_obj, intake.pain_scale, intake.complaint)
+        rule_res = evaluate_clinical_rules(
+            vitals=vitals_obj,
+            pain_scale=intake.pain_scale,
+            complaint=intake.complaint,
+            medical_history=intake.medical_history,
+            age=intake.age
+        )
         ai_res = evaluate_patient_ai(intake)
         db.add_patient(intake, ai_res, rule_res)
         time.sleep(0.5) # Brief delay to simulate rapid arrivals over time
