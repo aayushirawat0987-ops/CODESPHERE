@@ -108,85 +108,6 @@ class PatientStorage:
 # Global storage singleton instance
 db = PatientStorage()
 
-<<<<<<< HEAD
-
-class CalendarStorage:
-    """
-    Persistent calendar storage backed by a JSON file.
-    Survives server restarts — all CRUD operations are written to disk immediately.
-    """
-    def __init__(self):
-        self._lock = threading.Lock()
-        self._patients: Dict[str, CalendarPatient] = {}
-        self._load_from_disk()
-
-    def _load_from_disk(self):
-        """Load existing calendar data from JSON file on startup."""
-        if os.path.exists(CALENDAR_DATA_FILE):
-            try:
-                with open(CALENDAR_DATA_FILE, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-                    for item in raw:
-                        record = CalendarPatient(**item)
-                        self._patients[record.id] = record
-            except Exception as e:
-                print(f"[CalendarStorage] Warning: failed to load {CALENDAR_DATA_FILE}: {e}")
-
-    def _save_to_disk(self):
-        """Write current state to JSON file. Must be called while holding the lock."""
-        try:
-            data = [p.model_dump() for p in self._patients.values()]
-            with open(CALENDAR_DATA_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f"[CalendarStorage] Warning: failed to save {CALENDAR_DATA_FILE}: {e}")
-
-    def add_patient(self, data: CalendarPatientCreate) -> CalendarPatient:
-        with self._lock:
-            patient_id = str(uuid.uuid4())[:8]
-            record = CalendarPatient(
-                id=patient_id,
-                date=data.date,
-                name=data.name,
-                age=data.age,
-                gender=data.gender,
-                problem=data.problem
-            )
-            self._patients[patient_id] = record
-            self._save_to_disk()
-            return record
-
-    def get_all(self) -> List[CalendarPatient]:
-        with self._lock:
-            return list(self._patients.values())
-
-    def update_patient(self, patient_id: str, data: CalendarPatientCreate) -> Optional[CalendarPatient]:
-        with self._lock:
-            if patient_id not in self._patients:
-                return None
-            record = CalendarPatient(
-                id=patient_id,
-                date=data.date,
-                name=data.name,
-                age=data.age,
-                gender=data.gender,
-                problem=data.problem
-            )
-            self._patients[patient_id] = record
-            self._save_to_disk()
-            return record
-
-    def delete_patient(self, patient_id: str) -> bool:
-        with self._lock:
-            if patient_id in self._patients:
-                del self._patients[patient_id]
-                self._save_to_disk()
-                return True
-            return False
-
-
-calendar_db = CalendarStorage()
-=======
 class CalendarStorage:
     def __init__(self, db_path=None):
         if db_path is None:
@@ -273,4 +194,3 @@ class CalendarStorage:
 # Calendar database singleton instance
 calendar_db = CalendarStorage()
 
->>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7

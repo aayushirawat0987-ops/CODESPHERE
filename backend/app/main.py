@@ -140,21 +140,6 @@ def clear_queue():
     db.clear()
     return {"status": "Queue cleared"}
 
-<<<<<<< HEAD
-@app.get("/api/calendar", response_model=List[CalendarPatient])
-def get_calendar_patients():
-    return calendar_db.get_all()
-
-@app.post("/api/calendar", response_model=CalendarPatient)
-def add_calendar_patient(data: CalendarPatientCreate):
-    return calendar_db.add_patient(data)
-
-@app.put("/api/calendar/{patient_id}", response_model=CalendarPatient)
-def update_calendar_patient(patient_id: str, data: CalendarPatientCreate):
-    updated = calendar_db.update_patient(patient_id, data)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Patient not found")
-=======
 @app.get("/api/calendar", response_model=List[CalendarPatientRecord])
 def get_calendar_patients():
     """
@@ -177,32 +162,32 @@ def update_calendar_patient(patient_id: str, patient: CalendarPatientIntake):
     updated = calendar_db.update_patient(patient_id, patient)
     if not updated:
         raise HTTPException(status_code=404, detail="Calendar patient not found")
->>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7
     return updated
 
 @app.delete("/api/calendar/{patient_id}")
 def delete_calendar_patient(patient_id: str):
-<<<<<<< HEAD
+    """
+    Deletes a calendar patient record.
+    """
     success = calendar_db.delete_patient(patient_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return {"status": "deleted"}
+        raise HTTPException(status_code=404, detail="Calendar patient not found")
+    return {"status": "success", "message": "Calendar patient deleted"}
 
-
-# ─── Voice Analysis Endpoint ─────────────────────────────────────────────────
 
 class VoiceAnalysisRequest(BaseModel):
     transcript: str
 
+
 class VoiceAnalysisResult(BaseModel):
     detected_problem: str
-    severity: str        # "Critical", "High", "Moderate", "Low"
-    ai_score: int        # 1–10
+    severity: str
+    ai_score: int
     keywords_found: List[str]
     recommendations: List[str]
-    confidence: str      # "High", "Medium", "Low"
+    confidence: str
 
-# Keyword-to-problem mapping with severity levels
+
 VOICE_SYMPTOM_MAP = [
     {"keywords": ["chest pain", "heart", "cardiac", "heart attack", "myocardial"], "problem": "Possible Cardiac Event", "severity": "Critical", "score": 10, "recs": ["Immediate ECG", "Cardiac enzyme panel", "Call cardiologist"]},
     {"keywords": ["can't breathe", "difficulty breathing", "shortness of breath", "choking", "asthma", "respiratory"], "problem": "Respiratory Distress", "severity": "Critical", "score": 9, "recs": ["Check SpO2", "Administer O2", "Prep bronchodilator"]},
@@ -216,58 +201,46 @@ VOICE_SYMPTOM_MAP = [
     {"keywords": ["fracture", "broken bone", "can't move", "injury", "trauma", "fall", "accident"], "problem": "Musculoskeletal Injury / Fracture", "severity": "Moderate", "score": 6, "recs": ["X-ray", "Immobilize limb", "Pain management"]},
     {"keywords": ["dizzy", "dizziness", "vertigo", "lightheaded", "balance"], "problem": "Dizziness / Vertigo", "severity": "Low", "score": 4, "recs": ["BP check", "ENT assessment", "Hydration status"]},
     {"keywords": ["rash", "allergic", "itching", "swelling", "hives", "allergy"], "problem": "Allergic Reaction / Dermatological", "severity": "Moderate", "score": 6, "recs": ["Check for anaphylaxis", "Antihistamines", "EpiPen if severe"]},
-    {"keywords": ["cough", "cold", "sore throat", "runny nose", "sneezing"], "problem": "Upper Respiratory Illness", "severity": "Low", "score": 3, "recs": ["Symptomatic treatment", "Rest & fluids", "COVID screening if applicable"]},
+    {"keywords": ["cough", "cold", "sore throat", "runny nose", "sneezing"], "problem": "Upper Respiratory Illness", "severity": "Low", "score": 3, "recs": ["Symptomatic treatment", "Rest and fluids", "COVID screening if applicable"]},
     {"keywords": ["anxiety", "panic", "stress", "mental", "depression", "suicidal", "harm"], "problem": "Mental Health Crisis", "severity": "High", "score": 7, "recs": ["Safe environment", "Psychiatric consult", "Risk assessment"]},
     {"keywords": ["diabetes", "blood sugar", "insulin", "hypoglycemia", "hyperglycemia"], "problem": "Diabetic Emergency", "severity": "High", "score": 8, "recs": ["Blood glucose test", "IV dextrose or insulin", "Endocrinology"]},
 ]
 
+
 @app.post("/api/voice-analysis", response_model=VoiceAnalysisResult)
 def analyze_voice_transcript(req: VoiceAnalysisRequest):
     """
-    Analyzes a voice transcript for medical symptoms, returns problem detection
-    with severity level and AI score contribution.
+    Analyzes a voice transcript for medical symptoms and returns triage support.
     """
     text = req.transcript.lower()
-    
     best_match = None
     best_score = 0
     all_keywords_found = []
-    
+
     for entry in VOICE_SYMPTOM_MAP:
         matched = [kw for kw in entry["keywords"] if kw in text]
         if matched and len(matched) > best_score:
             best_score = len(matched)
             best_match = entry
             all_keywords_found = matched
-    
+
     if not best_match:
-        # Generic low-urgency response
         return VoiceAnalysisResult(
             detected_problem="General Complaint / Unspecified Symptoms",
             severity="Low",
             ai_score=2,
             keywords_found=[],
             recommendations=["Full clinical assessment needed", "Document patient history", "Nurse triage evaluation"],
-            confidence="Low"
+            confidence="Low",
         )
-    
+
     confidence = "High" if best_score >= 2 else "Medium"
-    
     return VoiceAnalysisResult(
         detected_problem=best_match["problem"],
         severity=best_match["severity"],
         ai_score=best_match["score"],
         keywords_found=all_keywords_found,
         recommendations=best_match["recs"],
-        confidence=confidence
+        confidence=confidence,
     )
-=======
-    """
-    Deletes a calendar patient record.
-    """
-    success = calendar_db.delete_patient(patient_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Calendar patient not found")
-    return {"status": "success", "message": "Calendar patient deleted"}
->>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7
 
