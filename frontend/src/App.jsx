@@ -18,6 +18,7 @@ export default function App() {
   
   const [currentView, setCurrentView] = useState('triage'); // 'triage' or 'calendar'
   const [calendarPatients, setCalendarPatients] = useState([]);
+  const [patientSubmitted, setPatientSubmitted] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -60,6 +61,9 @@ export default function App() {
       showToast(`✅ Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
       resetForm();
       loadPatients();
+      if (currentView === 'patient') {
+        setPatientSubmitted(true);
+      }
     } catch (err) {
       alert(`Error submitting intake: ${err.message}`);
     } finally {
@@ -124,7 +128,30 @@ export default function App() {
 
       {/* Main Grid Workspace */}
       <main className="main-content">
-        {currentView === 'triage' ? (
+        {currentView === 'patient' ? (
+          patientSubmitted ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+              <div className="card" style={{ maxWidth: '550px', textAlign: 'center', padding: '2.5rem', boxShadow: '0 15px 35px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '4.5rem', marginBottom: '1.5rem', display: 'inline-block' }}>✅</div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, marginBottom: '1rem', color: 'var(--green-text)' }}>Intake Submitted Successfully!</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+                  Thank you for registering. Your details have been submitted securely to the clinical triage queue. Please make your way to the waiting lounge—our medical team will call you shortly.
+                </p>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', justifyContent: 'center' }}
+                  onClick={() => setPatientSubmitted(false)}
+                >
+                  ➕ Register Another Patient / New Intake
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ maxWidth: '600px', margin: '1.5rem auto' }}>
+              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+            </div>
+          )
+        ) : currentView === 'triage' ? (
           <div className="grid-layout">
             {/* Left Column: Patient Intake Form */}
             <aside className="column-intake">
