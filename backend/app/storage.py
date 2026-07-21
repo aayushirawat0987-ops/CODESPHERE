@@ -58,7 +58,12 @@ class PatientStorage:
                 all_red_flags=all_flags,
                 combined_rationale=combined_rationale,
                 is_overridden=False,
-                override=None
+                override=None,
+                age=intake.age,
+                gender=intake.gender,
+                medical_history=intake.medical_history,
+                allergies=intake.allergies,
+                current_medications=intake.current_medications
             )
 
             self._patients[patient_id] = record

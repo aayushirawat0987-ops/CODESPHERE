@@ -12,6 +12,11 @@ class PatientIntake(BaseModel):
     complaint: str = Field(..., description="Primary chief complaint described in patient's words")
     pain_scale: int = Field(..., ge=1, le=10, description="Pain score from 1 to 10")
     vitals: Optional[Vitals] = Field(default_factory=Vitals)
+    age: Optional[int] = Field(default=None, ge=0, le=150, description="Patient age in years")
+    gender: Optional[str] = Field(default=None, description="Patient gender")
+    medical_history: Optional[str] = Field(default=None, description="Pre-existing diseases or medical history")
+    allergies: Optional[str] = Field(default=None, description="Known allergies")
+    current_medications: Optional[str] = Field(default=None, description="Active medications")
 
 class TriageReasoning(BaseModel):
     urgency_score: int = Field(..., ge=1, le=10, description="AI calculated urgency score (1-10)")
@@ -43,6 +48,12 @@ class PatientRecord(BaseModel):
     combined_rationale: str
     is_overridden: bool = False
     override: Optional[StaffOverride] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    medical_history: Optional[str] = None
+    allergies: Optional[str] = None
+    current_medications: Optional[str] = None
+
 
 class OverrideRequest(BaseModel):
     score: int = Field(..., ge=1, le=10)

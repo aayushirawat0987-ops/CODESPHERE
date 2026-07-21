@@ -89,6 +89,26 @@ def mock_triage_fallback(intake: PatientIntake, reason: str = "Fallback AI Reaso
         score = max(score, score + 1)
         red_flags.append("Pyrexia / Elevated body temperature")
 
+    # Medical history & age checks in fallback
+    history = (intake.medical_history or "").lower()
+    if intake.age:
+        if intake.age >= 65:
+            if any(k in c for k in ["chest", "heart", "breath", "fever", "dizziness"]):
+                score = max(score, 9)
+                red_flags.append("🚨 SAFETY ALERT: Geriatric patient presenting with cardiorespiratory or systemic symptoms")
+            else:
+                score = max(score, score + 1)
+        elif intake.age <= 2:
+            score = max(score, score + 1)
+            red_flags.append("Pediatric risk factor: Infant age group (<2 y/o)")
+
+    if any(k in history for k in ["heart", "cardiac", "stroke", "diabetes", "asthma", "copd"]):
+        if any(k in c for k in ["chest", "breath", "difficulty"]):
+            score = max(score, 9)
+            red_flags.append(f"🚨 SAFETY ALERT: Cardiorespiratory complaint with comorbid history of {intake.medical_history}")
+        else:
+            score = max(score, score + 1)
+
     score = min(10, max(1, score))
     
     if not red_flags:
@@ -124,11 +144,22 @@ def evaluate_patient_ai(intake: PatientIntake) -> TriageReasoning:
             if v_parts:
                 vitals_text = ", ".join(v_parts)
 
+        age_text = f"{intake.age} years old" if intake.age else "Not provided"
+        gender_text = intake.gender if intake.gender else "Not provided"
+        history_text = intake.medical_history if intake.medical_history else "None reported"
+        allergies_text = intake.allergies if intake.allergies else "None reported"
+        meds_text = intake.current_medications if intake.current_medications else "None reported"
+
         user_content = f"""Patient Intake Summary:
 - Name: {intake.name}
+- Age: {age_text}
+- Gender: {gender_text}
 - Chief Complaint: {intake.complaint}
 - Self-Reported Pain Scale: {intake.pain_scale}/10
 - Vitals: {vitals_text}
+- Past Medical History: {history_text}
+- Allergies: {allergies_text}
+- Active Medications: {meds_text}
 
 Provide JSON triage decision-support object."""
 
