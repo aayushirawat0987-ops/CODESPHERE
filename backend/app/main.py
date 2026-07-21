@@ -14,10 +14,14 @@ import time
 import logging
 from pydantic import BaseModel
 
-from app.models import PatientIntake, PatientRecord, OverrideRequest, Vitals, CalendarPatient, CalendarPatientCreate
+from app.models import (
+    PatientIntake, PatientRecord, OverrideRequest, Vitals,
+    CalendarPatientIntake, CalendarPatientRecord
+)
 from app.rule_engine import evaluate_clinical_rules
 from app.ai_engine import evaluate_patient_ai
 from app.storage import db, calendar_db
+
 from app.surge_data import SURGE_PATIENTS
 
 logging.basicConfig(level=logging.INFO)
@@ -64,7 +68,9 @@ def process_patient_intake(intake: PatientIntake):
     rule_res = evaluate_clinical_rules(
         vitals=intake.vitals or Vitals(),
         pain_scale=intake.pain_scale,
-        complaint=intake.complaint
+        complaint=intake.complaint,
+        medical_history=intake.medical_history,
+        age=intake.age
     )
 
     # 2. AI Reasoning Engine evaluation..
@@ -107,7 +113,13 @@ def run_surge_simulation_batch():
             pain_scale=int(p["pain_scale"]),
             vitals=vitals_obj
         )
-        rule_res = evaluate_clinical_rules(vitals_obj, intake.pain_scale, intake.complaint)
+        rule_res = evaluate_clinical_rules(
+            vitals=vitals_obj,
+            pain_scale=intake.pain_scale,
+            complaint=intake.complaint,
+            medical_history=intake.medical_history,
+            age=intake.age
+        )
         ai_res = evaluate_patient_ai(intake)
         db.add_patient(intake, ai_res, rule_res)
         time.sleep(0.5) # Brief delay to simulate rapid arrivals over time
@@ -128,6 +140,7 @@ def clear_queue():
     db.clear()
     return {"status": "Queue cleared"}
 
+<<<<<<< HEAD
 @app.get("/api/calendar", response_model=List[CalendarPatient])
 def get_calendar_patients():
     return calendar_db.get_all()
@@ -141,10 +154,35 @@ def update_calendar_patient(patient_id: str, data: CalendarPatientCreate):
     updated = calendar_db.update_patient(patient_id, data)
     if not updated:
         raise HTTPException(status_code=404, detail="Patient not found")
+=======
+@app.get("/api/calendar", response_model=List[CalendarPatientRecord])
+def get_calendar_patients():
+    """
+    Returns all calendar patient records.
+    """
+    return calendar_db.get_all_patients()
+
+@app.post("/api/calendar", response_model=CalendarPatientRecord, status_code=201)
+def add_calendar_patient(patient: CalendarPatientIntake):
+    """
+    Adds a new patient to the calendar database.
+    """
+    return calendar_db.add_patient(patient)
+
+@app.put("/api/calendar/{patient_id}", response_model=CalendarPatientRecord)
+def update_calendar_patient(patient_id: str, patient: CalendarPatientIntake):
+    """
+    Updates an existing calendar patient record.
+    """
+    updated = calendar_db.update_patient(patient_id, patient)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Calendar patient not found")
+>>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7
     return updated
 
 @app.delete("/api/calendar/{patient_id}")
 def delete_calendar_patient(patient_id: str):
+<<<<<<< HEAD
     success = calendar_db.delete_patient(patient_id)
     if not success:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -223,4 +261,13 @@ def analyze_voice_transcript(req: VoiceAnalysisRequest):
         recommendations=best_match["recs"],
         confidence=confidence
     )
+=======
+    """
+    Deletes a calendar patient record.
+    """
+    success = calendar_db.delete_patient(patient_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Calendar patient not found")
+    return {"status": "success", "message": "Calendar patient deleted"}
+>>>>>>> da19188f27e6a05b1e8cb7108e3dacc4482b82e7
 

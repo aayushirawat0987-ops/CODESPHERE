@@ -1,12 +1,6 @@
 import React from 'react';
 
-const NAV_ITEMS = [
-  { id: 'triage',   label: '🏥 Triage',   title: 'Triage Dashboard' },
-  { id: 'calendar', label: '📅 Calendar',  title: 'Patient Calendar' },
-  { id: 'voice',    label: '🎙️ Voice AI',  title: 'Voice Symptom Analyzer' },
-];
-
-export default function Header({ onTriggerSurge, onClearQueue, isSurging, isRefreshing, currentView, onViewChange, onGoHome }) {
+export default function Header({ onTriggerSurge, onClearQueue, isSurging, isRefreshing, currentView, onViewChange }) {
   return (
     <header className="app-header">
       <div className="header-left">
@@ -32,40 +26,44 @@ export default function Header({ onTriggerSurge, onClearQueue, isSurging, isRefr
         <div className="title-block">
           <div className="brand-row">
             <h1 className="brand-title">VITALIS <span className="brand-accent">/ TriageAI</span></h1>
-            <span className="clinical-tag">Clinical Decision-Support</span>
+            <span className={isKiosk ? "clinical-tag btn-warning" : "clinical-tag"} style={isKiosk ? { background: 'rgba(217, 119, 6, 0.15)', color: '#d97706', border: '1px solid #d97706' } : {}}>
+              {isKiosk ? "Self-Check-In Kiosk" : "Clinical Decision-Support"}
+            </span>
           </div>
           <p className="brand-subtitle">
-            AI-assisted urgency evaluation &amp; clinical safety guardrails • Human staff retains 100% override control
+            AI-assisted urgency evaluation & clinical safety guardrails • Human staff retains 100% override control
           </p>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', background: '#f1f5f9', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.id}
-            id={`nav-${item.id}-btn`}
-            className={`btn ${currentView === item.id ? 'btn-primary' : ''}`}
-            style={{
-              padding: '8px 18px',
-              fontSize: '0.85rem',
-              background: currentView === item.id ? 'linear-gradient(135deg, #0096c7, #005b9f)' : 'transparent',
-              color: currentView === item.id ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '8px',
-              boxShadow: currentView === item.id ? '0 2px 10px rgba(0,91,159,0.3)' : 'none',
-            }}
-            onClick={() => onViewChange(item.id)}
-            title={item.title}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="header-center" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: 'auto', marginRight: '20px' }}>
+        <button
+          className={`btn ${currentView === 'triage' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('triage')}
+        >
+          Triage Dashboard
+        </button>
+        <button
+          className={`btn ${currentView === 'calendar' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('calendar')}
+        >
+          Patient Calendar
+        </button>
       </div>
 
       <div className="header-actions">
-        {currentView === 'triage' && (
+        {isKiosk ? (
+          <button
+            className="btn btn-warning"
+            onClick={() => {
+              const confirmExit = window.confirm("Are you a clinician? Click OK to exit Kiosk Mode and return to the Nurse Dashboard.");
+              if (confirmExit) onViewChange('triage');
+            }}
+            title="Clinician password / verification gate"
+          >
+            🔒 Exit Kiosk (Staff Only)
+          </button>
+        ) : currentView === 'triage' && (
           <>
             <div className="live-status-pill">
               <span className={`pulse-dot ${isRefreshing ? 'refreshing' : ''}`}></span>

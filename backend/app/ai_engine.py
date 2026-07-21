@@ -66,17 +66,23 @@ def mock_triage_fallback(intake: PatientIntake, reason: str = "Fallback AI Reaso
     
     score = 3
     red_flags = []
-    
-    # Urgent condition heuristics
-    if any(k in c for k in ["chest pain", "heart", "cardiac", "stroke", "numbness", "unresponsive", "bleeding profusely"]):
-        score = 9
-        red_flags.append("High-risk acuity: Potential cardiovascular / neurological event")
-    elif any(k in c for k in ["shortness of breath", "difficulty breathing", "asthma attack", "choking"]):
+
+    # Category A: Immediate Life-Threats (Score 9-10)
+    life_threats = ["cardiac arrest", "heart attack", "myocardial infarction", "crushing chest pain", "throat swelling", "anaphylaxis", "gunshot", "amputation", "diabetic coma"]
+    if any(k in c for k in life_threats):
+        score = 10
+        red_flags.append("High-risk acuity: Potential immediate life-threat (cardiac, airway, or catastrophic trauma)")
+
+    # Category B: Urgent / Semi-Critical (Score 7-8)
+    elif any(k in c for k in ["chest pain", "shortness of breath", "difficulty breathing", "numbness", "slurred speech", "fainting", "unresponsive", "seizure", "appendicitis", "vomiting blood", "black stool", "compound fracture", "head injury"]):
         score = 8
-        red_flags.append("High-risk acuity: Airway / respiratory distress")
-    elif any(k in c for k in ["severe pain", "fracture", "abdominal pain", "kidney stone", "burn"]):
+        red_flags.append("High-risk acuity: Potential stroke, cardiovascular distress, or internal bleeding")
+
+    # Category C: Moderate (Score 5-6)
+    elif any(k in c for k in ["kidney infection", "migraine", "animal bite", "insect bite", "dehydration", "deep cut", "pneumonia", "fracture", "burn"]):
         score = 6
-        red_flags.append("Moderate acuity: Pain management & diagnostic workup needed")
+        red_flags.append("Moderate acuity: Clinical diagnostic workup and pain management required")
+
     elif pain >= 8:
         score = max(score, 7)
         red_flags.append("Elevated pain score (8+/10)")
@@ -84,10 +90,30 @@ def mock_triage_fallback(intake: PatientIntake, reason: str = "Fallback AI Reaso
     # Vitals influence
     if vitals and vitals.heart_rate and vitals.heart_rate > 110:
         score = max(score, score + 1)
-        red_flags.append("Elevated resting heart rate")
+        red_flags.append("Elevated resting heart rate (Tachycardia)")
     if vitals and vitals.temperature and vitals.temperature > 101.5:
         score = max(score, score + 1)
         red_flags.append("Pyrexia / Elevated body temperature")
+
+    # Medical history & age checks in fallback
+    history = (intake.medical_history or "").lower()
+    if intake.age:
+        if intake.age >= 65:
+            if any(k in c for k in ["chest", "heart", "breath", "fever", "dizziness"]):
+                score = max(score, 9)
+                red_flags.append("🚨 SAFETY ALERT: Geriatric patient presenting with cardiorespiratory or systemic symptoms")
+            else:
+                score = max(score, score + 1)
+        elif intake.age <= 2:
+            score = max(score, score + 1)
+            red_flags.append("Pediatric risk factor: Infant age group (<2 y/o)")
+
+    if any(k in history for k in ["heart", "cardiac", "stroke", "diabetes", "asthma", "copd"]):
+        if any(k in c for k in ["chest", "breath", "difficulty"]):
+            score = max(score, 9)
+            red_flags.append(f"🚨 SAFETY ALERT: Cardiorespiratory complaint with comorbid history of {intake.medical_history}")
+        else:
+            score = max(score, score + 1)
 
     score = min(10, max(1, score))
     
@@ -124,11 +150,22 @@ def evaluate_patient_ai(intake: PatientIntake) -> TriageReasoning:
             if v_parts:
                 vitals_text = ", ".join(v_parts)
 
+        age_text = f"{intake.age} years old" if intake.age else "Not provided"
+        gender_text = intake.gender if intake.gender else "Not provided"
+        history_text = intake.medical_history if intake.medical_history else "None reported"
+        allergies_text = intake.allergies if intake.allergies else "None reported"
+        meds_text = intake.current_medications if intake.current_medications else "None reported"
+
         user_content = f"""Patient Intake Summary:
 - Name: {intake.name}
+- Age: {age_text}
+- Gender: {gender_text}
 - Chief Complaint: {intake.complaint}
 - Self-Reported Pain Scale: {intake.pain_scale}/10
 - Vitals: {vitals_text}
+- Past Medical History: {history_text}
+- Allergies: {allergies_text}
+- Active Medications: {meds_text}
 
 Provide JSON triage decision-support object."""
 

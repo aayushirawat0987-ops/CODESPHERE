@@ -134,7 +134,16 @@ export default function NurseDashboard({ patients, onOpenOverride, lastUpdated }
 
                 <div className="row-content-col">
                   <div className="patient-header-line">
-                    <h3 className="patient-name-title">{patient.name}</h3>
+                    <h3 className="patient-name-title">
+                      {patient.name}
+                      {(patient.age || patient.gender) && (
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                          ({patient.age ? `${patient.age} y/o` : ''}
+                          {patient.age && patient.gender ? ', ' : ''}
+                          {patient.gender || ''})
+                        </span>
+                      )}
+                    </h3>
                     <div className="vitals-chips">
                       <span className="chip chip-pain">Pain: {patient.pain_scale}/10</span>
                       {patient.vitals?.heart_rate && (
@@ -156,6 +165,27 @@ export default function NurseDashboard({ patients, onOpenOverride, lastUpdated }
                   <p className="patient-complaint">
                     <strong>Chief Complaint:</strong> "{patient.complaint}"
                   </p>
+
+                  {/* Detailed Clinical Profile Section */}
+                  {(patient.medical_history || patient.allergies || patient.current_medications) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '8px 0', padding: '8px', background: '#f8fafc', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                      {patient.medical_history && (
+                        <div>
+                          <strong>Medical History:</strong> <span style={{ color: 'var(--text-primary)' }}>{patient.medical_history}</span>
+                        </div>
+                      )}
+                      {patient.current_medications && (
+                        <div>
+                          <strong>Active Medications:</strong> <span style={{ color: 'var(--text-secondary)' }}>{patient.current_medications}</span>
+                        </div>
+                      )}
+                      {patient.allergies && (
+                        <div>
+                          <strong>Allergies:</strong> <span style={{ color: '#b91c1c', fontWeight: 'bold' }}>{patient.allergies}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Red Flags List */}
                   {patient.all_red_flags && patient.all_red_flags.length > 0 && (
