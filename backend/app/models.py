@@ -75,3 +75,22 @@ class CalendarPatientRecord(BaseModel):
     gender: str
     problem: str
     date: str
+
+
+class FaceAnalysisRequest(BaseModel):
+    image_base64: Optional[str] = None
+    pain_scale: Optional[int] = 5
+    facial_droop: Optional[bool] = False
+    pallor: Optional[bool] = False
+
+
+class FaceAnalysisResult(BaseModel):
+    facial_pain_score: int
+    distress_level: str
+    stroke_asymmetry_risk: str
+    detected_expression: str
+    red_flags: List[str]
+    recommendations: List[str]
+    confidence: str
+    ai_vision_mode: str
+

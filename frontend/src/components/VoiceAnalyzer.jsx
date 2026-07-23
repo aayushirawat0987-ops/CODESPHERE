@@ -8,6 +8,21 @@ const SEVERITY_CONFIG = {
   Low:      { color: '#059669', bg: 'rgba(5,150,105,0.10)',  border: '#10b981', emoji: '✅', glow: 'rgba(16,185,129,0.4)' },
 };
 
+const SUPPORTED_LANGUAGES = [
+  { code: 'en-US', label: '🇺🇸 English' },
+  { code: 'es-ES', label: '🇪🇸 Spanish (Español)' },
+  { code: 'hi-IN', label: '🇮🇳 Hindi (हिन्दी)' },
+  { code: 'fr-FR', label: '🇫🇷 French (Français)' },
+  { code: 'de-DE', label: '🇩🇪 German (Deutsch)' },
+  { code: 'zh-CN', label: '🇨🇳 Chinese (中文)' },
+  { code: 'ar-SA', label: '🇸🇦 Arabic (العربية)' },
+  { code: 'ru-RU', label: '🇷🇺 Russian (Русский)' },
+  { code: 'pt-BR', label: '🇧🇷 Portuguese (Português)' },
+  { code: 'it-IT', label: '🇮🇹 Italian (Italiano)' },
+  { code: 'ja-JP', label: '🇯🇵 Japanese (日本語)' },
+  { code: 'ko-KR', label: '🇰🇷 Korean (한국어)' }
+];
+
 export default function VoiceAnalyzer() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -19,6 +34,7 @@ export default function VoiceAnalyzer() {
   const [history, setHistory] = useState([]);
   const [manualText, setManualText] = useState('');
   const [inputMode, setInputMode] = useState('voice'); // 'voice' | 'text'
+  const [selectedLang, setSelectedLang] = useState('en-US');
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
@@ -49,7 +65,7 @@ export default function VoiceAnalyzer() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = selectedLang;
 
     recognition.onresult = (event) => {
       let full = '';
@@ -93,7 +109,7 @@ export default function VoiceAnalyzer() {
     try {
       const result = await analyzeVoiceTranscript(text.trim());
       setAnalysis(result);
-      setHistory(prev => [{ transcript: text.trim(), result, timestamp: new Date().toLocaleTimeString() }, ...prev.slice(0, 4)]);
+      setHistory(prev => [{ transcript: text.trim(), result, timestamp: new Date().toLocaleTimeString(), lang: selectedLang }, ...prev.slice(0, 4)]);
     } catch (err) {
       setError('Analysis failed: ' + err.message);
     } finally {
@@ -128,25 +144,50 @@ export default function VoiceAnalyzer() {
         <div>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '1.6rem' }}>🎙️</span>
-            Voice Symptom Analyzer
+            Multilingual Voice Symptom Analyzer
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Speak your symptoms naturally — AI detects the condition & assigns an urgency score
+            Speak symptoms in any language — AI detects cross-lingual conditions & assigns emergency priority
           </p>
         </div>
-        {/* Mode Toggle */}
-        <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', border: '1px solid var(--border-color)' }}>
-          {['voice', 'text'].map(mode => (
-            <button key={mode} onClick={() => setInputMode(mode)}
+
+        {/* Controls: Language Dropdown + Input Mode */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          
+          {/* Language Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Language:</span>
+            <select
+              value={selectedLang}
+              onChange={e => setSelectedLang(e.target.value)}
               style={{
-                padding: '6px 18px', borderRadius: '7px', border: 'none', cursor: 'pointer',
-                fontWeight: 600, fontSize: '0.85rem', transition: 'all 0.2s',
-                background: inputMode === mode ? 'linear-gradient(135deg,#0096c7,#005b9f)' : 'transparent',
-                color: inputMode === mode ? '#fff' : 'var(--text-secondary)',
-              }}>
-              {mode === 'voice' ? '🎤 Voice' : '⌨️ Text'}
-            </button>
-          ))}
+                padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)',
+                background: '#fff', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem',
+                cursor: 'pointer', outline: 'none'
+              }}
+            >
+              {SUPPORTED_LANGUAGES.map(lang => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Mode Toggle */}
+          <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', border: '1px solid var(--border-color)' }}>
+            {['voice', 'text'].map(mode => (
+              <button key={mode} onClick={() => setInputMode(mode)}
+                style={{
+                  padding: '6px 18px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+                  fontWeight: 600, fontSize: '0.85rem', transition: 'all 0.2s',
+                  background: inputMode === mode ? 'linear-gradient(135deg,#0096c7,#005b9f)' : 'transparent',
+                  color: inputMode === mode ? '#fff' : 'var(--text-secondary)',
+                }}>
+                {mode === 'voice' ? '🎤 Voice' : '⌨️ Text'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -180,7 +221,7 @@ export default function VoiceAnalyzer() {
                 <span style={{ fontFamily: 'monospace', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {formatTime(recordingTime)}
                 </span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Recording...</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Listening ({SUPPORTED_LANGUAGES.find(l=>l.code===selectedLang)?.label})...</span>
               </div>
             )}
 
@@ -213,7 +254,7 @@ export default function VoiceAnalyzer() {
                 width: '100%', background: 'rgba(0,150,199,0.05)', border: '1px solid rgba(0,150,199,0.2)',
                 borderRadius: '10px', padding: '14px 16px',
               }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>TRANSCRIPT</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>TRANSCRIPT ({selectedLang})</span>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>{transcript}</p>
               </div>
             )}
@@ -222,13 +263,13 @@ export default function VoiceAnalyzer() {
           /* Text Input Mode */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <label style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Describe the patient's symptoms in plain language:
+              Describe the patient's symptoms in any supported language:
             </label>
             <textarea
               id="voice-text-input"
               value={manualText}
               onChange={e => setManualText(e.target.value)}
-              placeholder="e.g. I have severe chest pain and difficulty breathing, my heart is racing..."
+              placeholder="e.g. Me duele el pecho y me cuesta respirar / मुझे छाती में दर्द है / J'ai une douleur thoracique..."
               rows={5}
               style={{
                 width: '100%', padding: '14px', background: '#f1f5f9',
@@ -269,7 +310,7 @@ export default function VoiceAnalyzer() {
       {isAnalyzing && (
         <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           <div style={{ width: '36px', height: '36px', border: '3px solid var(--border-color)', borderTopColor: '#0096c7', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
-          Analyzing symptoms with AI engine...
+          Analyzing multilingual symptoms with AI engine...
         </div>
       )}
 
@@ -329,7 +370,7 @@ export default function VoiceAnalyzer() {
               {analysis.keywords_found.length > 0 && (
                 <div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                    🔍 Detected Keywords
+                    🔍 Detected Multilingual Keywords
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {analysis.keywords_found.map(kw => (
@@ -362,7 +403,7 @@ export default function VoiceAnalyzer() {
 
           {/* Disclaimer */}
           <div style={{ padding: '12px 24px', borderTop: `1px solid ${cfg.border}`, background: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            ⚠️ This is a decision-support tool only. Clinicians retain full diagnostic authority.
+            ⚠️ Multilingual decision-support engine. Clinicians retain full diagnostic authority.
           </div>
         </div>
       )}
@@ -371,7 +412,7 @@ export default function VoiceAnalyzer() {
       {history.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
           <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            📜 Recent Analyses
+            📜 Recent Multilingual Analyses
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {history.map((item, i) => {

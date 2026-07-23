@@ -3,6 +3,9 @@ import Header from './components/Header';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
 import OverrideModal from './components/OverrideModal';
+import PatientProfileModal from './components/PatientProfileModal';
+import MedicalReportModal from './components/MedicalReportModal';
+import AnalyticsView from './components/AnalyticsView';
 import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
 import FaceAnalyzer from './components/FaceAnalyzer';
@@ -12,7 +15,7 @@ import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, f
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'calendar' | 'voice' | 'face' | 'contact'
+  // 'landing' | 'triage' | 'analytics' | 'calendar' | 'voice' | 'face' | 'contact'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
@@ -21,15 +24,42 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingIntake, setIsLoadingIntake] = useState(false);
   const [isSurging, setIsSurging] = useState(false);
+  
+  // Modals state
   const [overridePatient, setOverridePatient] = useState(null);
+  const [profilePatient, setProfilePatient] = useState(null);
+  const [reportPatient, setReportPatient] = useState(null);
+
   const [lastUpdated, setLastUpdated] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
   const [calendarPatients, setCalendarPatients] = useState([]);
-  const [patientSubmitted, setPatientSubmitted] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Play Web Audio API chime sound on surge / alerts
+  const playAlertChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) {
+      // Audio not permitted or unaccessible
+    }
   };
 
   const loadPatients = useCallback(async () => {
@@ -69,9 +99,6 @@ export default function App() {
       showToast(`✅ Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
       resetForm();
       loadPatients();
-      if (currentView === 'patient') {
-        setPatientSubmitted(true);
-      }
     } catch (err) {
       alert(`Error submitting intake: ${err.message}`);
     } finally {
@@ -81,6 +108,7 @@ export default function App() {
 
   const handleTriggerSurge = async () => {
     setIsSurging(true);
+    playAlertChime();
     try {
       await triggerSurge();
       showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
@@ -93,7 +121,7 @@ export default function App() {
     } catch (err) {
       alert(`Surge simulation error: ${err.message}`);
     } finally {
-      setTimeout(() => setIsSurging(false), 2000);
+      setTimeout(() => setIsSurging(false), 3000);
     }
   };
 
@@ -130,7 +158,7 @@ export default function App() {
     setCurrentView(view);
   };
 
-  // Show landing if not entered yet
+  // Show landing page if not entered yet
   if (appState === 'landing') {
     return (
       <>
@@ -140,40 +168,20 @@ export default function App() {
         />
         {showContactOnLanding && (
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
           }}>
             <div style={{
-              backgroundColor: '#fff',
-              borderRadius: '12px',
-              maxWidth: '700px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              position: 'relative'
+              backgroundColor: '#fff', borderRadius: '12px', maxWidth: '700px',
+              width: '100%', maxHeight: '90vh', overflow: 'auto', position: 'relative'
             }}>
               <button
                 onClick={() => setShowContactOnLanding(false)}
                 style={{
-                  position: 'sticky',
-                  top: '10px',
-                  right: '10px',
-                  float: 'right',
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  zIndex: 1001,
-                  color: '#666'
+                  position: 'sticky', top: '10px', right: '10px', float: 'right',
+                  background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer',
+                  zIndex: 1001, color: '#666'
                 }}
               >
                 ✕
@@ -195,6 +203,18 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Emergency Surge Alert Banner */}
+      {isSurging && (
+        <div style={{
+          background: 'linear-gradient(90deg, #dc2626, #b91c1c, #dc2626)',
+          color: '#fff', padding: '10px 20px', textAlign: 'center', fontWeight: 900,
+          fontSize: '0.9rem', letterSpacing: '1px', textTransform: 'uppercase',
+          boxShadow: '0 4px 20px rgba(220,38,38,0.5)', animation: 'pulse 1s infinite'
+        }}>
+          🚨 EMERGENCY SURGE IN PROGRESS — 9 HIGH-ACUITY PATIENTS ARRIVING IN QUEUE
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
       <Header
         onTriggerSurge={handleTriggerSurge}
@@ -206,7 +226,7 @@ export default function App() {
         onGoHome={() => setAppState('landing')}
       />
 
-      {/* Main Grid Workspace */}
+      {/* Main Workspace Views */}
       <main className="main-content">
         {currentView === 'triage' && (
           <div className="grid-layout">
@@ -217,10 +237,16 @@ export default function App() {
               <NurseDashboard
                 patients={patients}
                 onOpenOverride={(p) => setOverridePatient(p)}
+                onOpenProfile={(p) => setProfilePatient(p)}
+                onOpenReport={(p) => setReportPatient(p)}
                 lastUpdated={lastUpdated}
               />
             </section>
           </div>
+        )}
+
+        {currentView === 'analytics' && (
+          <AnalyticsView patients={patients} />
         )}
 
         {currentView === 'calendar' && (
@@ -255,6 +281,24 @@ export default function App() {
           patient={overridePatient}
           onClose={() => setOverridePatient(null)}
           onSave={handleSaveOverride}
+        />
+      )}
+
+      {/* Detailed Patient Profile Modal */}
+      {profilePatient && (
+        <PatientProfileModal
+          patient={profilePatient}
+          onClose={() => setProfilePatient(null)}
+          onOpenOverride={(p) => { setProfilePatient(null); setOverridePatient(p); }}
+          onOpenReport={(p) => { setProfilePatient(null); setReportPatient(p); }}
+        />
+      )}
+
+      {/* Printable Medical Triage Report Modal */}
+      {reportPatient && (
+        <MedicalReportModal
+          patient={reportPatient}
+          onClose={() => setReportPatient(null)}
         />
       )}
 

@@ -108,6 +108,9 @@ export async function analyzeFaceImage(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Failed to perform facial vision analysis');
+  if (!res.ok) {
+    const errObj = await res.json().catch(() => ({}));
+    throw new Error(errObj.detail || 'Failed to perform facial vision analysis');
+  }
   return res.json();
 }

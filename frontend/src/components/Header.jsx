@@ -64,6 +64,12 @@ export default function Header({
           Triage Dashboard
         </button>
         <button
+          className={`btn ${currentView === 'analytics' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('analytics')}
+        >
+          📊 Analytics
+        </button>
+        <button
           className={`btn ${currentView === 'calendar' ? 'btn-primary' : 'btn-secondary-ghost'}`}
           onClick={() => onViewChange('calendar')}
         >
