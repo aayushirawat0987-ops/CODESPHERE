@@ -1,5 +1,5 @@
 {
-  "patient_id_counter": 1,
+  "patient_id_counter": 2,
   "users": [
     {
       "id": "usr_doc_1",
@@ -42,11 +42,206 @@
       "department": "Hospital Administration"
     }
   ],
-  "patients": [],
-  "triage_records": [],
-  "visit_records": [],
-  "consultation_notes": [],
+  "patients": [
+    {
+      "patient_id": "VIT-2026-000001",
+      "id": "cc9e39c7",
+      "name": "Aayushi",
+      "age": 20,
+      "gender": "Female",
+      "phone": "+1 (555) 000-1122",
+      "email": "aayushi@patient.com",
+      "blood_group": "O+",
+      "emergency_contact": "+1 (555) 999-8877",
+      "medical_history": null,
+      "allergies": null,
+      "current_medications": null,
+      "registered_at": "2026-07-23 16:15:23"
+    }
+  ],
+  "triage_records": [
+    {
+      "id": "cc9e39c7",
+      "created_at": "2026-07-23 16:15:23",
+      "name": "Aayushi",
+      "complaint": "Headache, Dizziness, ️ Fever, Neck Pain, ️ Eye Pain, Low Blood Pressure",
+      "pain_scale": 8,
+      "vitals": {
+        "heart_rate": 80,
+        "temperature": 99,
+        "blood_pressure": "110/75",
+        "spo2": 98,
+        "resp_rate": 16,
+        "height": null,
+        "weight": null
+      },
+      "ai_reasoning": {
+        "urgency_score": 10,
+        "extracted_symptoms": [
+          "Fever / Hyperthermia",
+          "Headache / Migraine",
+          "Dizziness / Vertigo / Syncope"
+        ],
+        "symptom_urgency_contributions": [
+          "Fever / Hyperthermia (+2 urgency score)",
+          "Headache / Migraine (+2 urgency score)",
+          "Dizziness / Vertigo / Syncope (+2 urgency score)",
+          "Severe acute pain level reported (8/10) (+3 score factor)"
+        ],
+        "possible_clinical_concerns": [
+          "May indicate Systemic Viral or Bacterial Infection",
+          "Suggests possibility of Sepsis when presenting with tachycardia",
+          "May indicate Severe Vascular Migraine or Tension Cephalea",
+          "Suggests possibility of Elevated Intracranial Pressure"
+        ],
+        "recommended_department": "Internal Medicine / Infectious Disease",
+        "recommended_next_steps": [
+          "Full blood count (CBC) with differential",
+          "Blood cultures and urinalysis",
+          "Antipyretic administration",
+          "Targeted neurological screen"
+        ],
+        "red_flags": [
+          "Severe acute pain reported (8/10)"
+        ],
+        "confidence_level": "High",
+        "rationale": "Patient presents with an urgency score of 10/10 based on identified symptoms (Fever / Hyperthermia, Headache / Migraine, Dizziness / Vertigo / Syncope) and pain level 8/10. Input parameters suggest potential clinical risk factors that require tailored evaluation.",
+        "clinician_rationale_hi": "मरीज़ का तात्कालिकता स्कोर 10/10 है जो बताए गए लक्षणों (Fever / Hyperthermia, Headache / Migraine, Dizziness / Vertigo / Syncope) और दर्द स्तर 8/10 पर आधारित है।",
+        "patient_summary_en": "Your body temperature is higher than normal, which means your body is fighting off an infection. Drink plenty of water and rest.",
+        "patient_summary_hi": "आपके शरीर का तापमान सामान्य से अधिक है, जिसका मतलब है कि आपका शरीर किसी संक्रमण से लड़ रहा है। भरपूर पानी पीएं और आराम करें।",
+        "patient_next_steps_en": [
+          "Drink plenty of fluids and water.",
+          "Rest in a cool, comfortable room."
+        ],
+        "patient_next_steps_hi": [
+          "भरपूर मात्रा में पानी और तरल पदार्थ पीएं।",
+          "ठंडे और आरामदायक कमरे में आराम करें।"
+        ],
+        "disclaimer": "Clinical Decision Support Only - Not a Medical Diagnosis"
+      },
+      "rule_check": {
+        "rule_score_boost": 0,
+        "rule_red_flags": [],
+        "rule_notes": []
+      },
+      "effective_urgency_score": 10,
+      "all_red_flags": [
+        "Severe acute pain reported (8/10)"
+      ],
+      "combined_rationale": "Patient presents with an urgency score of 10/10 based on identified symptoms (Fever / Hyperthermia, Headache / Migraine, Dizziness / Vertigo / Syncope) and pain level 8/10. Input parameters suggest potential clinical risk factors that require tailored evaluation.",
+      "is_overridden": false,
+      "override": null,
+      "age": 20,
+      "gender": "Female",
+      "medical_history": null,
+      "allergies": null,
+      "current_medications": null,
+      "patient_id": "VIT-2026-000001",
+      "qr_code_url": "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=VIT-2026-000001"
+    }
+  ],
+  "visit_records": [
+    {
+      "visit_id": "vst_1784823323670",
+      "patient_id": "VIT-2026-000001",
+      "patient_name": "Aayushi",
+      "date_time": "2026-07-23 16:15:23",
+      "symptoms": "Headache, Dizziness, ️ Fever, Neck Pain, ️ Eye Pain, Low Blood Pressure",
+      "department": "Internal Medicine / Infectious Disease",
+      "ai_urgency_score": 10,
+      "status": "Critical"
+    }
+  ],
+  "consultation_notes": [
+    {
+      "id": "note_1784823477374_l6gq",
+      "patient_id": "cc9e39c7",
+      "patient_name": "Aayushi",
+      "author_id": "usr_doc_1",
+      "author_name": "Dr. Sarah Jenkins, MD",
+      "author_role": "doctor",
+      "note_type": "doctor_treatment",
+      "title": "Clinical Consultation & Diagnosis",
+      "content": "take rest . drink cold water and prescribe medicine",
+      "created_at": "2026-07-23 16:17:57"
+    }
+  ],
   "appointments": [],
-  "audit_logs": [],
-  "daily_stats": {}
+  "audit_logs": [
+    {
+      "id": "log_1784823477374_9v9u",
+      "timestamp": "2026-07-23 16:17:57",
+      "date": "2026-07-23",
+      "userId": "usr_doc_1",
+      "username": "Dr. Sarah Jenkins, MD",
+      "role": "doctor",
+      "action": "NOTE_ADDED",
+      "details": "Added doctor_treatment for Aayushi"
+    },
+    {
+      "id": "log_1784823440240_f5y4",
+      "timestamp": "2026-07-23 16:17:20",
+      "date": "2026-07-23",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784823426044_8ccw",
+      "timestamp": "2026-07-23 16:17:06",
+      "date": "2026-07-23",
+      "userId": "usr_nurse_1",
+      "username": "nurse",
+      "role": "nurse",
+      "action": "USER_LOGIN",
+      "details": "Nurse Mary Rivera, RN logged in"
+    },
+    {
+      "id": "log_1784823323671_awpc",
+      "timestamp": "2026-07-23 16:15:23",
+      "date": "2026-07-23",
+      "userId": "system",
+      "username": "System",
+      "role": "system",
+      "action": "TRIAGE_RECORD_ADDED",
+      "details": "Intake processed for Aayushi (VIT-2026-000001) - Urgency 10/10"
+    },
+    {
+      "id": "log_1784823167537_ndt3",
+      "timestamp": "2026-07-23 16:12:47",
+      "date": "2026-07-23",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
+      "id": "log_1784823114578_wxw5",
+      "timestamp": "2026-07-23 16:11:54",
+      "date": "2026-07-23",
+      "userId": "usr_pat_1",
+      "username": "patient",
+      "role": "patient",
+      "action": "USER_LOGIN",
+      "details": "John Doe logged in"
+    }
+  ],
+  "daily_stats": {
+    "2026-07-23": {
+      "date": "2026-07-23",
+      "registered_count": 1,
+      "emergency_count": 1,
+      "admitted_count": 0,
+      "discharged_count": 0,
+      "override_count": 0,
+      "symptoms_tally": {
+        "Fever / Hyperthermia": 1,
+        "Headache / Migraine": 1,
+        "Dizziness / Vertigo / Syncope": 1
+      }
+    }
+  }
 }
