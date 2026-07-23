@@ -76,6 +76,18 @@
       "phone": "+919259178687",
       "department": "ADMIN",
       "created_at": "2026-07-23T16:37:44.230Z"
+    },
+    {
+      "id": "usr_1784825154269_mi5b",
+      "patient_id": null,
+      "username": "DR. DEV SHARMA",
+      "password": "DEVSHARMA1",
+      "name": "DR.DEV SHARMA",
+      "role": "doctor",
+      "email": "",
+      "phone": "",
+      "department": "Cardiology / ER",
+      "created_at": "2026-07-23T16:45:54.269Z"
     }
   ],
   "patients": [
@@ -204,6 +216,36 @@
   ],
   "appointments": [],
   "audit_logs": [
+    {
+      "id": "log_1784825381970_m881",
+      "timestamp": "2026-07-23 16:49:41",
+      "date": "2026-07-23",
+      "userId": "usr_nurse_1",
+      "username": "nurse",
+      "role": "nurse",
+      "action": "USER_LOGIN",
+      "details": "Nurse Mary Rivera, RN logged in"
+    },
+    {
+      "id": "log_1784825154269_for8",
+      "timestamp": "2026-07-23 16:45:54",
+      "date": "2026-07-23",
+      "userId": "usr_1784825154269_mi5b",
+      "username": "DR. DEV SHARMA",
+      "role": "doctor",
+      "action": "USER_REGISTERED",
+      "details": "Created account DR.DEV SHARMA (ID: Staff)"
+    },
+    {
+      "id": "log_1784825071316_tvkp",
+      "timestamp": "2026-07-23 16:44:31",
+      "date": "2026-07-23",
+      "userId": "usr_1784824664230_znlq",
+      "username": "AAYUSH",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "AAYUSH logged in"
+    },
     {
       "id": "log_1784824664230_t35a",
       "timestamp": "2026-07-23 16:37:44",
