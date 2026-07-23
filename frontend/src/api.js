@@ -63,6 +63,16 @@ export async function submitCalendarPatient(patientData) {
   return res.json();
 }
 
+export const addCalendarPatient = submitCalendarPatient;
+
+export async function updateCalendarPatient(id, patientData) {
+  return submitCalendarPatient({ ...patientData, id });
+}
+
+export async function deleteCalendarPatient(id) {
+  return { status: 'deleted', id };
+}
+
 export async function analyzeVoiceTranscript(transcriptText) {
   const res = await fetch(`${API_BASE_URL}/api/voice-symptom-analysis`, {
     method: 'POST',
