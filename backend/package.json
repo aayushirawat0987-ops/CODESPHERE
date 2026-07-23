@@ -1,7 +1,7 @@
 {
   "name": "vitalis-triage-backend",
   "version": "1.0.0",
-  "description": "Vitalis / TriageAI Express.js Backend Server",
+  "description": "Vitalis / TriageAI Express.js Backend Server with MongoDB Integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,6 +13,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "mongoose": "^8.5.1",
     "sqlite3": "^5.1.7",
     "uuid": "^10.0.0"
   },

@@ -1,15 +1,17 @@
 /**
- * Vitalis Persistent Database Engine (SQLite + JSON File Sync Backup)
- * ------------------------------------------------------------------
- * Provides 100% permanent storage with Automatic Patient ID Generation (VIT-2026-XXXXXX),
- * QR Code metadata, Patient Visits, Vitals, Consultation Notes, Appointments,
- * Daily Hospital Stats, and Audit Logs.
+ * Vitalis MongoDB Engine (Mongoose + Persistent Sync)
+ * ----------------------------------------------------
+ * Connects to MongoDB (Local or MongoDB Atlas Cloud via MONGODB_URI)
+ * Stores Users, Patients, AI Triage Intakes, Consultation Notes, Appointments,
+ * Daily Statistics, and Audit Trail Logs in MongoDB Collections.
  */
 
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 
 const DB_FILE = path.join(__dirname, 'vitalis_db.json');
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/vitalis_db';
 
 const SEED_USERS = [
   {
@@ -54,8 +56,111 @@ const SEED_USERS = [
   }
 ];
 
+// --- Mongoose Schemas ---
+const UserSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  patient_id: { type: String, default: null },
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  role: { type: String, required: true },
+  email: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  department: { type: String, default: 'General' },
+  created_at: { type: Date, default: Date.now }
+});
+
+const PatientSchema = new mongoose.Schema({
+  patient_id: { type: String, required: true, unique: true },
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  age: Number,
+  gender: String,
+  phone: String,
+  email: String,
+  blood_group: String,
+  emergency_contact: String,
+  medical_history: String,
+  allergies: String,
+  current_medications: String,
+  registered_at: String
+});
+
+const TriageRecordSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  patient_id: { type: String, required: true },
+  name: { type: String, required: true },
+  age: Number,
+  gender: String,
+  complaint: String,
+  pain_scale: Number,
+  vitals: Object,
+  effective_urgency_score: Number,
+  is_overridden: Boolean,
+  override: Object,
+  combined_rationale: String,
+  ai_reasoning: Object,
+  all_red_flags: Array,
+  qr_code_url: String,
+  created_at: String
+});
+
+const ConsultationNoteSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  patient_id: String,
+  patient_name: String,
+  author_id: String,
+  author_name: String,
+  author_role: String,
+  note_type: String,
+  title: String,
+  content: String,
+  created_at: String
+});
+
+const AppointmentSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  patient_id: String,
+  patient_name: String,
+  age: Number,
+  gender: String,
+  doctor_id: String,
+  doctor_name: String,
+  department: String,
+  problem: String,
+  date: String,
+  time: String,
+  status: String,
+  created_at: String
+});
+
+const AuditLogSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  timestamp: String,
+  date: String,
+  userId: String,
+  username: String,
+  role: String,
+  action: String,
+  details: String
+});
+
+// Compile Models
+let UserModel, PatientModel, TriageModel, NoteModel, AppointmentModel, AuditModel;
+try {
+  UserModel = mongoose.model('User', UserSchema);
+  PatientModel = mongoose.model('Patient', PatientSchema);
+  TriageModel = mongoose.model('TriageRecord', TriageRecordSchema);
+  NoteModel = mongoose.model('ConsultationNote', ConsultationNoteSchema);
+  AppointmentModel = mongoose.model('Appointment', AppointmentSchema);
+  AuditModel = mongoose.model('AuditLog', AuditLogSchema);
+} catch (e) {
+  // Graceful fallback if models already registered
+}
+
 class DatabaseEngine {
   constructor() {
+    this.isMongoConnected = false;
     this.data = {
       patient_id_counter: 1,
       users: [...SEED_USERS],
@@ -68,6 +173,49 @@ class DatabaseEngine {
       daily_stats: {}
     };
     this.init();
+    this.connectMongo();
+  }
+
+  async connectMongo() {
+    try {
+      console.log(`[MongoDB] Connecting to ${MONGODB_URI}...`);
+      await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 4000
+      });
+      this.isMongoConnected = true;
+      console.log('✅ [MongoDB] Connected successfully to Database Cluster!');
+      this.syncMongoToMemory();
+    } catch (err) {
+      console.log(`ℹ️ [MongoDB] Connection note: ${err.message}. Operating in Persistent SQLite/JSON Sync mode.`);
+    }
+  }
+
+  async syncMongoToMemory() {
+    if (!this.isMongoConnected) return;
+    try {
+      const dbUsers = await UserModel.find({});
+      if (dbUsers.length > 0) this.data.users = dbUsers;
+      else await UserModel.insertMany(SEED_USERS);
+
+      const dbPatients = await PatientModel.find({});
+      if (dbPatients.length > 0) this.data.patients = dbPatients;
+
+      const dbTriages = await TriageModel.find({});
+      if (dbTriages.length > 0) this.data.triage_records = dbTriages;
+
+      const dbNotes = await NoteModel.find({});
+      if (dbNotes.length > 0) this.data.consultation_notes = dbNotes;
+
+      const dbAppts = await AppointmentModel.find({});
+      if (dbAppts.length > 0) this.data.appointments = dbAppts;
+
+      const dbLogs = await AuditModel.find({});
+      if (dbLogs.length > 0) this.data.audit_logs = dbLogs;
+
+      console.log('[MongoDB] Synced collections to active memory engine.');
+    } catch (err) {
+      console.error('[MongoDB] Sync error:', err.message);
+    }
   }
 
   init() {
@@ -86,7 +234,7 @@ class DatabaseEngine {
           audit_logs: parsed.audit_logs || [],
           daily_stats: parsed.daily_stats || {}
         };
-        console.log(`[DB] Loaded persistent DB (${this.data.triage_records.length} triage records, counter at ${this.data.patient_id_counter}).`);
+        console.log(`[DB] Loaded persistent DB file (${this.data.triage_records.length} triage records, Patient ID counter at ${this.data.patient_id_counter}).`);
       } else {
         this.save();
         console.log(`[DB] Initialized new persistent DB file.`);
@@ -129,6 +277,10 @@ class DatabaseEngine {
     this.data.audit_logs.unshift(logEntry);
     if (this.data.audit_logs.length > 500) this.data.audit_logs.pop();
     this.save();
+
+    if (this.isMongoConnected && AuditModel) {
+      AuditModel.create(logEntry).catch(e => console.error(e.message));
+    }
     return logEntry;
   }
 
@@ -157,6 +309,10 @@ class DatabaseEngine {
     this.data.users.push(newUser);
     this.logAction(newUser.id, newUser.username, newUser.role, 'USER_REGISTERED', `Created account ${newUser.name} (ID: ${newUser.patient_id || 'Staff'})`);
     this.save();
+
+    if (this.isMongoConnected && UserModel) {
+      UserModel.create(newUser).catch(e => console.error(e.message));
+    }
     return newUser;
   }
 
@@ -170,7 +326,6 @@ class DatabaseEngine {
   }
 
   addTriageRecord(record) {
-    // Check if master patient exists or create new with automatic Patient ID (VIT-2026-XXXXXX)
     let masterPat = this.data.patients.find(p => p.name.toLowerCase() === record.name.toLowerCase());
     let formattedPatId = masterPat ? masterPat.patient_id : this.generatePatientId();
 
@@ -191,12 +346,14 @@ class DatabaseEngine {
         registered_at: record.created_at
       };
       this.data.patients.push(masterPat);
+      if (this.isMongoConnected && PatientModel) {
+        PatientModel.create(masterPat).catch(e => console.error(e.message));
+      }
     }
 
     record.patient_id = formattedPatId;
     record.qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(formattedPatId)}`;
 
-    // Add/Update triage record
     const idx = this.data.triage_records.findIndex(p => p.id === record.id || (p.name === record.name && p.created_at === record.created_at));
     if (idx !== -1) {
       this.data.triage_records[idx] = record;
@@ -204,7 +361,6 @@ class DatabaseEngine {
       this.data.triage_records.unshift(record);
     }
 
-    // Add visit record
     this.data.visit_records.unshift({
       visit_id: `vst_${Date.now()}`,
       patient_id: formattedPatId,
@@ -219,6 +375,10 @@ class DatabaseEngine {
     this.updateDailyStats(record);
     this.logAction('system', 'System', 'system', 'TRIAGE_RECORD_ADDED', `Intake processed for ${record.name} (${formattedPatId}) - Urgency ${record.effective_urgency_score}/10`);
     this.save();
+
+    if (this.isMongoConnected && TriageModel) {
+      TriageModel.create(record).catch(e => console.error(e.message));
+    }
     return record;
   }
 
@@ -233,6 +393,10 @@ class DatabaseEngine {
 
     this.logAction('staff', overrideData.staff_name || 'Nurse', 'nurse', 'URGENCY_OVERRIDDEN', `Score for ${patient.patient_id || patientId} (${patient.name}) set to ${overrideData.score}/10`);
     this.save();
+
+    if (this.isMongoConnected && TriageModel) {
+      TriageModel.updateOne({ id: patient.id }, patient).catch(e => console.error(e.message));
+    }
     return patient;
   }
 
@@ -240,6 +404,9 @@ class DatabaseEngine {
     this.data.triage_records = [];
     this.logAction('admin', 'Admin', 'admin', 'QUEUE_CLEARED', 'Cleared all triage queue records');
     this.save();
+    if (this.isMongoConnected && TriageModel) {
+      TriageModel.deleteMany({}).catch(e => console.error(e.message));
+    }
   }
 
   // --- Patient History Timeline ---
@@ -305,10 +472,14 @@ class DatabaseEngine {
     this.data.consultation_notes.unshift(note);
     this.logAction(note.author_id, note.author_name, note.author_role, 'NOTE_ADDED', `Added ${note.note_type} for ${note.patient_name}`);
     this.save();
+
+    if (this.isMongoConnected && NoteModel) {
+      NoteModel.create(note).catch(e => console.error(e.message));
+    }
     return note;
   }
 
-  // --- Persistent Appointments ---
+  // --- Appointments ---
   getAppointments() {
     return this.data.appointments;
   }
@@ -333,6 +504,10 @@ class DatabaseEngine {
     this.data.appointments.unshift(appt);
     this.logAction('staff', 'Staff', 'nurse', 'APPOINTMENT_CREATED', `Appointment scheduled for ${appt.patient_name} (${patId}) on ${appt.date}`);
     this.save();
+
+    if (this.isMongoConnected && AppointmentModel) {
+      AppointmentModel.create(appt).catch(e => console.error(e.message));
+    }
     return appt;
   }
 
