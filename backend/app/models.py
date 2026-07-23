@@ -1,6 +1,6 @@
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class Vitals(BaseModel):
@@ -21,8 +21,15 @@ class PatientIntake(BaseModel):
 
 class TriageReasoning(BaseModel):
     urgency_score: int = Field(..., ge=1, le=10, description="AI calculated urgency score (1-10)")
+    extracted_symptoms: List[str] = Field(default_factory=list, description="Dynamically extracted symptoms")
+    symptom_urgency_contributions: List[str] = Field(default_factory=list, description="Detailed explanation of symptom score contributions")
+    possible_clinical_concerns: List[str] = Field(default_factory=list, description="Multi-item differential clinical possibilities")
+    recommended_department: str = Field(default="General Triage", description="Recommended hospital department")
+    recommended_next_steps: List[str] = Field(default_factory=list, description="Actionable recommended next clinical steps")
     red_flags: List[str] = Field(default_factory=list, description="Identified red flag symptoms")
-    rationale: str = Field(..., description="1-2 sentence plain-language clinical reasoning explanation")
+    confidence_level: str = Field(default="High", description="AI confidence score ('High' | 'Medium' | 'Low')")
+    rationale: str = Field(..., description="Plain-language clinical reasoning explanation")
+    disclaimer: str = Field(default="Clinical Decision Support Only - Not a Medical Diagnosis")
 
 class RuleCheckResult(BaseModel):
     rule_score_boost: int = 0
@@ -84,13 +91,20 @@ class FaceAnalysisRequest(BaseModel):
     pallor: Optional[bool] = False
 
 
+class FaceObservationDetail(BaseModel):
+    observation: str
+    status: str
+    severity: str
+    explanation: str
+
+
 class FaceAnalysisResult(BaseModel):
     facial_pain_score: int
     distress_level: str
     stroke_asymmetry_risk: str
     detected_expression: str
+    observations_breakdown: List[Dict[str, Any]] = Field(default_factory=list)
     red_flags: List[str]
     recommendations: List[str]
     confidence: str
     ai_vision_mode: str
-

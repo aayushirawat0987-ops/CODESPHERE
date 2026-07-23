@@ -1,64 +1,91 @@
 /**
  * Surge Simulation Patient Dataset
  * --------------------------------
- * 8-10 realistic demo patients mixing low, moderate, and high urgency complaints & vitals.
- * Designed to demonstrate queue re-ordering live during pitch presentations.
+ * 9 realistic demo patients mixing low, moderate, and high urgency multi-symptom complaints.
+ * Demonstrates dynamic triage, multi-symptom evaluation, and queue re-ordering live.
  */
 
 const SURGE_PATIENTS = [
   {
     name: "Mark Evans",
-    complaint: "Twisted right ankle while stepping off curb. Mild swelling and pain when putting weight on foot.",
+    age: 29,
+    gender: "Male",
+    complaint: "Twisted right ankle while stepping off curb with moderate swelling and bruising.",
     pain_scale: 4,
-    vitals: { heart_rate: 72, temperature: 98.6, blood_pressure: "120/78" }
+    vitals: { heart_rate: 72, temperature: 98.6, blood_pressure: "120/78" },
+    medical_history: "None"
   },
   {
     name: "Sarah Jenkins",
-    complaint: "Pressure and tightness in central chest radiating to left arm. Started 20 minutes ago while resting.",
+    age: 64,
+    gender: "Female",
+    complaint: "Substernal chest pressure radiating to left shoulder accompanied by shortness of breath and diaphoresis.",
     pain_scale: 8,
-    vitals: { heart_rate: 105, temperature: 99.1, blood_pressure: "148/94" }
+    vitals: { heart_rate: 105, temperature: 99.1, blood_pressure: "148/94" },
+    medical_history: "Hypertension, Hyperlipidemia"
   },
   {
     name: "David Ross",
-    complaint: "Persistent dry cough, mild sore throat, and fatigue for 3 days. No shortness of breath.",
-    pain_scale: 2,
-    vitals: { heart_rate: 76, temperature: 99.6, blood_pressure: "118/74" }
+    age: 42,
+    gender: "Male",
+    complaint: "Persistent fever for 3 days, severe headache, muscle aches, and repeated vomiting.",
+    pain_scale: 6,
+    vitals: { heart_rate: 98, temperature: 102.4, blood_pressure: "124/82" },
+    medical_history: "None"
   },
   {
     name: "Elena Rostova",
-    complaint: "Post-surgical knee patient feeling chills, confusion, and shivering. Incision site warm and red.",
+    age: 71,
+    gender: "Female",
+    complaint: "Post-surgical fever, chills, dizziness, lethargy, and warm abdominal incision site.",
     pain_scale: 7,
-    vitals: { heart_rate: 128, temperature: 102.2, blood_pressure: "105/65" } // Sepsis rule trigger!
+    vitals: { heart_rate: 128, temperature: 102.2, blood_pressure: "105/65" },
+    medical_history: "Diabetes Mellitus Type 2"
   },
   {
     name: "Arthur Pendelton",
-    complaint: "Sudden onset thunderclap headache ('worst headache of life') with sudden visual blurriness.",
+    age: 58,
+    gender: "Male",
+    complaint: "Sudden thunderclap headache, visual blurriness, neck stiffness, and light sensitivity.",
     pain_scale: 9,
-    vitals: { heart_rate: 94, temperature: 98.4, blood_pressure: "178/108" }
+    vitals: { heart_rate: 94, temperature: 98.4, blood_pressure: "178/108" },
+    medical_history: "Hypertension"
   },
   {
     name: "Chloe Bennett",
-    complaint: "Shallow 1-inch cut on left index finger while chopping kitchen vegetables. Bleeding controlled with pressure.",
-    pain_scale: 3,
-    vitals: { heart_rate: 68, temperature: 98.6, blood_pressure: "112/70" }
+    age: 24,
+    gender: "Female",
+    complaint: "Widespread skin rash, hives, facial swelling, and mild throat itching after eating seafood.",
+    pain_scale: 5,
+    vitals: { heart_rate: 92, temperature: 98.6, blood_pressure: "114/72" },
+    medical_history: "Known Peanut Allergy"
   },
   {
     name: "Robert Taylor",
-    complaint: "Severe sharp abdominal pain in right lower quadrant with nausea and low-grade fever.",
+    age: 35,
+    gender: "Male",
+    complaint: "Severe right lower quadrant abdominal pain, nausea, loss of appetite, and low-grade fever.",
     pain_scale: 8,
-    vitals: { heart_rate: 98, temperature: 100.6, blood_pressure: "132/85" }
+    vitals: { heart_rate: 98, temperature: 100.6, blood_pressure: "132/85" },
+    medical_history: "None"
   },
   {
     name: "Maria Garcia",
-    complaint: "Severe dizziness, pounding headache, and lightheadedness. History of hypertension.",
-    pain_scale: 6,
-    vitals: { heart_rate: 92, temperature: 98.7, blood_pressure: "192/122" } // Hypertensive crisis rule trigger!
+    age: 68,
+    gender: "Female",
+    complaint: "Severe pounding headache, dizziness, nausea, and nosebleed.",
+    pain_scale: 7,
+    vitals: { heart_rate: 92, temperature: 98.7, blood_pressure: "192/122" },
+    medical_history: "Hypertension"
   },
   {
     name: "Liam Miller",
-    complaint: "Itchy red rash on both forearms after walking through brush yesterday.",
-    pain_scale: 1,
-    vitals: { heart_rate: 70, temperature: 98.2, blood_pressure: "116/75" }
+    age: 51,
+    gender: "Male",
+    complaint: "Severe lower back pain radiating to groin, painful blood-tinged urination, and vomiting.",
+    pain_scale: 9,
+    vitals: { heart_rate: 102, temperature: 99.0, blood_pressure: "140/88" },
+    medical_history: "History of Kidney Stones"
   }
 ];
 

@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
- 
+
+const COMMON_SYMPTOM_TAGS = [
+  '🌡️ Fever', '🧠 Headache', '💫 Dizziness', '🤮 Vomiting', '💧 Diarrhea',
+  '🤢 Abdominal Pain', '💔 Chest Pain', '🫁 Shortness of Breath', '🗣️ Cough',
+  '🗣️ Sore Throat', '🦴 Back Pain', '🦵 Joint Pain', '🦒 Neck Pain',
+  '👂 Ear Pain', '👁️ Eye Pain', '🔴 Skin Rash', '🔥 Burns', '🐝 Allergic Reaction',
+  '😰 Anxiety', '🧊 Dehydration', '🪫 Weakness', '😵 Loss of Consciousness',
+  '⚡ Seizures', '💥 Trauma', '🦴 Fractures', '🩸 Bleeding', '🤰 Pregnancy Complaint',
+  '🚽 Urinary Symptoms', '📈 High Blood Pressure', '📉 Low Blood Pressure',
+  '🍬 High Blood Sugar', '📉 Low Blood Sugar'
+];
+
 export default function PatientForm({ onSubmit, isLoading }) {
   const [name, setName] = useState('');
   const [complaint, setComplaint] = useState('');
@@ -16,6 +27,24 @@ export default function PatientForm({ onSubmit, isLoading }) {
   const [otherHistory, setOtherHistory] = useState('');
   const [allergies, setAllergies] = useState('');
   const [medications, setMedications] = useState('');
+
+  const toggleSymptomTag = (tagText) => {
+    // Strip leading emoji
+    const cleanTag = tagText.replace(/^[\p{Emoji}\s]+/u, '').trim();
+    if (complaint.toLowerCase().includes(cleanTag.toLowerCase())) {
+      // Remove symptom from complaint text
+      const regex = new RegExp(`(?:,\\s*)?${cleanTag}`, 'gi');
+      const updated = complaint.replace(regex, '').replace(/^,\s*/, '').trim();
+      setComplaint(updated);
+    } else {
+      // Append symptom to complaint text
+      if (!complaint.trim()) {
+        setComplaint(cleanTag);
+      } else {
+        setComplaint(prev => `${prev}, ${cleanTag}`);
+      }
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,7 +78,6 @@ export default function PatientForm({ onSubmit, isLoading }) {
     };
 
     onSubmit(payload, () => {
-      // Clear form after successful submit
       setName('');
       setComplaint('');
       setPainScale(5);
@@ -69,7 +97,6 @@ export default function PatientForm({ onSubmit, isLoading }) {
   };
 
   const loadPreset = (presetType) => {
-    // Reset clinical history first
     setDiabetes(false);
     setHypertension(false);
     setHeartDisease(false);
@@ -78,9 +105,18 @@ export default function PatientForm({ onSubmit, isLoading }) {
     setAllergies('');
     setMedications('');
 
-    if (presetType === 'chest_pain') {
+    if (presetType === 'fever_vomiting') {
+      setName('David Ross');
+      setComplaint('High fever, severe pounding headache, muscle aches, and repeated vomiting for 2 days.');
+      setPainScale(7);
+      setHeartRate(98);
+      setTemperature(102.4);
+      setBloodPressure('124/82');
+      setAge(42);
+      setGender('Male');
+    } else if (presetType === 'chest_breath') {
       setName('James Vance');
-      setComplaint('Substernal chest pressure and mild shortness of breath while walking up stairs.');
+      setComplaint('Substernal chest pressure, shortness of breath, and diaphoresis while walking.');
       setPainScale(8);
       setHeartRate(104);
       setTemperature(98.8);
@@ -90,28 +126,35 @@ export default function PatientForm({ onSubmit, isLoading }) {
       setHeartDisease(true);
       setHypertension(true);
       setMedications('Lisinopril, Aspirin');
-      setAllergies('Penicillin');
-    } else if (presetType === 'ankle') {
-      setName('Emily Carter');
-      setComplaint('Rolled left ankle on hiking trail 2 hours ago. Moderate swelling, able to bear slight weight.');
-      setPainScale(4);
-      setHeartRate(72);
-      setTemperature(98.6);
-      setBloodPressure('118/76');
-      setAge(29);
-      setGender('Female');
-      setAllergies('Sulfa Drugs');
     } else if (presetType === 'sepsis') {
       setName('Harold Miller');
-      setComplaint('Post-surgical chills, dizziness, lethargy, and warm abdominal surgical incision site.');
-      setPainScale(6);
+      setComplaint('Post-surgical chills, dizziness, lethargy, shivering, and warm abdominal incision.');
+      setPainScale(7);
       setHeartRate(124);
       setTemperature(101.8);
       setBloodPressure('102/62');
       setAge(74);
       setGender('Male');
       setDiabetes(true);
-      setMedications('Metformin');
+    } else if (presetType === 'allergy_rash') {
+      setName('Chloe Bennett');
+      setComplaint('Widespread skin rash, hives, facial swelling, and mild throat itching after seafood.');
+      setPainScale(5);
+      setHeartRate(92);
+      setTemperature(98.6);
+      setBloodPressure('114/72');
+      setAge(24);
+      setGender('Female');
+      setAllergies('Seafood');
+    } else if (presetType === 'ankle') {
+      setName('Emily Carter');
+      setComplaint('Rolled left ankle on trail 2 hours ago. Moderate swelling, able to bear slight weight.');
+      setPainScale(4);
+      setHeartRate(72);
+      setTemperature(98.6);
+      setBloodPressure('118/76');
+      setAge(29);
+      setGender('Female');
     }
   };
 
@@ -119,16 +162,22 @@ export default function PatientForm({ onSubmit, isLoading }) {
     <div className="card intake-card">
       <div className="card-header">
         <h2 className="card-title">
-          <span className="icon">📋</span> Patient Intake
+          <span className="icon">📋</span> Patient Intake & AI Multi-Symptom Analyzer
         </h2>
-        <span className="badge-outline">Step 1: Enter Vitals & Symptoms</span>
+        <span className="badge-outline">Step 1: Enter Vitals & Dynamic Symptoms</span>
       </div>
 
-      {/* Quick Preset Buttons for Live Demos */}
+      {/* Demo Presets */}
       <div className="preset-bar">
-        <span className="preset-label">Quick Demo Presets:</span>
-        <button type="button" className="btn-chip" onClick={() => loadPreset('chest_pain')}>
-          💔 Chest Pressure
+        <span className="preset-label">Multi-Symptom Demo Presets:</span>
+        <button type="button" className="btn-chip" onClick={() => loadPreset('fever_vomiting')}>
+          🧠 Fever + Headache + Vomiting
+        </button>
+        <button type="button" className="btn-chip" onClick={() => loadPreset('chest_breath')}>
+          💔 Chest Pressure + Shortness of Breath
+        </button>
+        <button type="button" className="btn-chip" onClick={() => loadPreset('allergy_rash')}>
+          🐝 Allergic Rash + Facial Swelling
         </button>
         <button type="button" className="btn-chip" onClick={() => loadPreset('sepsis')}>
           🚨 Sepsis Alert (HR+Fever)
@@ -181,13 +230,47 @@ export default function PatientForm({ onSubmit, isLoading }) {
           </div>
         </div>
 
+        {/* Interactive Multi-Symptom Tag Selector */}
+        <div className="form-group">
+          <label style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>⚡ Interactive Multi-Symptom Selector (Tap to combine)</span>
+            <span style={{ fontSize: '0.75rem', color: '#0096c7', fontWeight: 600 }}>Multiple symptoms supported</span>
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '0.75rem', maxHeight: '140px', overflowY: 'auto', padding: '8px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            {COMMON_SYMPTOM_TAGS.map((tagText, idx) => {
+              const cleanTag = tagText.replace(/^[\p{Emoji}\s]+/u, '').trim();
+              const isSelected = complaint.toLowerCase().includes(cleanTag.toLowerCase());
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => toggleSymptomTag(tagText)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '16px',
+                    border: isSelected ? '1px solid #0096c7' : '1px solid #cbd5e1',
+                    background: isSelected ? 'rgba(0,150,199,0.15)' : '#ffffff',
+                    color: isSelected ? '#0077b6' : 'var(--text-primary)',
+                    fontWeight: isSelected ? 800 : 500,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {isSelected ? `✓ ${tagText}` : tagText}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="form-group">
           <label htmlFor="chief-complaint">Main Chief Complaint <span className="req">*</span></label>
           <textarea
             id="chief-complaint"
             className="input-field textarea-field"
             rows="3"
-            placeholder="Describe symptoms in patient's plain language (e.g. sharp right lower side stomach pain, nausea)..."
+            placeholder="Describe any combination of symptoms in patient's plain language (e.g. fever, severe headache, dizziness, vomiting)..."
             value={complaint}
             onChange={(e) => setComplaint(e.target.value)}
             required
@@ -310,7 +393,7 @@ export default function PatientForm({ onSubmit, isLoading }) {
         <button type="submit" className="btn btn-primary submit-btn" disabled={isLoading}>
           {isLoading ? (
             <span className="spinner-wrap">
-              <span className="spinner"></span> Analyzing AI Reasoner...
+              <span className="spinner"></span> Analyzing Dynamic Multi-Symptom AI...
             </span>
           ) : (
             '⚡ Evaluate & Submit to Triage Queue'

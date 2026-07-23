@@ -16,17 +16,23 @@ export default function MedicalReportModal({ patient, onClose }) {
 
   const vitals = patient.vitals || {};
   const ai = patient.ai_reasoning || {};
-  const rules = patient.rule_check || {};
   const override = patient.override || null;
+
+  const extractedSymptoms = ai.extracted_symptoms || [];
+  const possibleConcerns = ai.possible_clinical_concerns || [];
+  const nextSteps = ai.recommended_next_steps || [];
+  const department = ai.recommended_department || (isCritical ? 'Emergency Department / Trauma' : 'General Triage');
+  const confidence = ai.confidence_level || 'High';
+  const disclaimer = ai.disclaimer || 'Clinical Decision Support Only - Not a Medical Diagnosis';
 
   return (
     <div className="modal-backdrop" style={{ zIndex: 1200 }}>
-      <div className="modal-card print-container" style={{ maxWidth: '800px', width: '90vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', background: '#fff', color: '#1e293b', borderRadius: '16px', overflow: 'hidden' }}>
+      <div className="modal-card print-container" style={{ maxWidth: '820px', width: '92vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', background: '#fff', color: '#1e293b', borderRadius: '16px', overflow: 'hidden' }}>
         
-        {/* Top Control Bar (Hidden during actual print) */}
+        {/* Top Control Bar */}
         <div className="no-print" style={{ padding: '14px 20px', background: '#0f172a', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>📄 Official Medical Triage Summary Report</span>
+            <span>📄 Official Hospital Triage Decision Support Report</span>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={handlePrint} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
@@ -42,14 +48,14 @@ export default function MedicalReportModal({ patient, onClose }) {
         <div className="printable-report" style={{ padding: '36px', overflowY: 'auto', flex: 1, fontFamily: 'Arial, sans-serif' }}>
           
           {/* Hospital Header */}
-          <div style={{ borderBottom: '3px solid #0096c7', pb: '16px', mb: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ borderBottom: '3px solid #0096c7', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.6rem', color: '#005b9f', fontWeight: 900, letterSpacing: '0.5px' }}>
                 VITALIS MEDICAL CENTER
               </h1>
               <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
                 Department of Emergency Medicine & Acute Clinical Triage<br />
-                Decision-Support Record & Staff Audit Log
+                AI-Driven Decision-Support Record & Staff Audit Log
               </p>
             </div>
 
@@ -64,7 +70,7 @@ export default function MedicalReportModal({ patient, onClose }) {
             </div>
           </div>
 
-          {/* Patient Demographics Box */}
+          {/* Patient Demographics */}
           <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
               1. PATIENT DEMOGRAPHICS & INTAKE SUMMARY
@@ -74,19 +80,33 @@ export default function MedicalReportModal({ patient, onClose }) {
               <div><strong>Age / Gender:</strong> {patient.age != null ? `${patient.age} yrs` : 'N/A'} / {patient.gender || 'N/A'}</div>
               <div><strong>Intake Time:</strong> {patient.created_at}</div>
               <div><strong>Self Pain Score:</strong> {patient.pain_scale}/10</div>
+              <div><strong>Recommended Dept:</strong> 🏥 {department}</div>
+              <div><strong>AI Confidence:</strong> {confidence} Confidence</div>
               <div><strong>Medical History:</strong> {patient.medical_history || 'None'}</div>
               <div><strong>Known Allergies:</strong> {patient.allergies || 'NKDA'}</div>
+              <div><strong>Active Meds:</strong> {patient.current_medications || 'None'}</div>
             </div>
           </div>
 
-          {/* Chief Complaint */}
+          {/* Chief Complaint & Extracted Symptoms */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: '0 0 8px', fontSize: '0.9rem', color: '#0f172a' }}>
-              2. PRIMARY CHIEF COMPLAINT
+              2. PRIMARY CHIEF COMPLAINT & EXTRACTED SYMPTOMS
             </h3>
-            <div style={{ background: '#fff', border: '1.5px solid #0096c7', borderRadius: '8px', padding: '12px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 600 }}>
+            <div style={{ background: '#fff', border: '1.5px solid #0096c7', borderRadius: '8px', padding: '12px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 600, marginBottom: '10px' }}>
               "{patient.complaint}"
             </div>
+
+            {extractedSymptoms.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>Identified Symptoms:</span>
+                {extractedSymptoms.map((sym, idx) => (
+                  <span key={idx} style={{ background: '#e0f2fe', border: '1px solid #7dd3fc', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 700 }}>
+                    {sym}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Vitals Summary Grid */}
@@ -130,10 +150,10 @@ export default function MedicalReportModal({ patient, onClose }) {
             </table>
           </div>
 
-          {/* AI & Safety Decision Support */}
+          {/* AI Decision Support & Differential */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: '0 0 8px', fontSize: '0.9rem', color: '#0f172a' }}>
-              4. AI DECISION SUPPORT & CLINICAL SAFETY CROSS-CHECKS
+              4. AI DECISION SUPPORT & CLINICAL DIFFERENTIAL OBSERVED
             </h3>
             <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px', fontSize: '0.85rem', lineHeight: '1.5' }}>
               <div style={{ marginBottom: '8px' }}>
@@ -142,8 +162,31 @@ export default function MedicalReportModal({ patient, onClose }) {
               <div style={{ marginBottom: '8px' }}>
                 <strong>Clinical Rationale:</strong> {patient.combined_rationale || ai.rationale}
               </div>
+
+              {possibleConcerns.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong>Possible Clinical Concerns (Non-Definitive Differential):</strong>
+                  <ul style={{ margin: '4px 0 8px', paddingLeft: '20px' }}>
+                    {possibleConcerns.map((concern, idx) => (
+                      <li key={idx}>• {concern}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {nextSteps.length > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  <strong>Recommended Next Steps:</strong>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: '20px', color: '#0369a1' }}>
+                    {nextSteps.map((step, idx) => (
+                      <li key={idx}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {patient.all_red_flags && patient.all_red_flags.length > 0 && (
-                <div>
+                <div style={{ marginTop: '10px' }}>
                   <strong>Active Red Flags ({patient.all_red_flags.length}):</strong>
                   <ul style={{ margin: '4px 0 0', paddingLeft: '20px', color: '#b91c1c' }}>
                     {patient.all_red_flags.map((flag, idx) => (
@@ -155,7 +198,7 @@ export default function MedicalReportModal({ patient, onClose }) {
             </div>
           </div>
 
-          {/* Staff Override / Doctor Sign-off */}
+          {/* Clinician Verification & Disclaimer */}
           <div style={{ borderTop: '2px dashed #cbd5e1', paddingTop: '16px', marginTop: '24px' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a' }}>
               5. CLINICIAN VERIFICATION & SIGN-OFF
@@ -171,6 +214,10 @@ export default function MedicalReportModal({ patient, onClose }) {
                 No manual override applied. AI recommendation accepted by attending triage nurse.
               </p>
             )}
+
+            <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic' }}>
+              🛡️ {disclaimer}
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '36px', paddingTop: '12px', fontSize: '0.8rem' }}>
               <div>

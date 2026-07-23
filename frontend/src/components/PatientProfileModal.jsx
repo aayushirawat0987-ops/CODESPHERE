@@ -12,7 +12,6 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
   const badgeBg = isCritical ? '#dc2626' : isHigh ? '#d97706' : isModerate ? '#0077b6' : '#059669';
   const badgeLabel = isCritical ? 'Critical Urgency' : isHigh ? 'High Urgency' : isModerate ? 'Moderate Urgency' : 'Low Urgency';
 
-  // Calculate estimated wait time based on score
   const waitMinutes = Math.max(0, Math.round((10 - score) * 7.5));
   const waitText = isCritical ? 'Immediate / Priority 1' : `${waitMinutes} min estimated wait`;
 
@@ -21,9 +20,17 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
   const rules = patient.rule_check || {};
   const override = patient.override || null;
 
+  const extractedSymptoms = ai.extracted_symptoms || [];
+  const urgencyContributions = ai.symptom_urgency_contributions || [];
+  const possibleConcerns = ai.possible_clinical_concerns || [];
+  const nextSteps = ai.recommended_next_steps || [];
+  const department = ai.recommended_department || (isCritical ? 'Emergency Department / Trauma' : 'General Triage');
+  const confidence = ai.confidence_level || 'High';
+  const disclaimer = ai.disclaimer || 'Clinical Decision Support Only - Not a Medical Diagnosis';
+
   return (
     <div className="modal-backdrop" style={{ zIndex: 1100 }}>
-      <div className="modal-card" style={{ maxWidth: '850px', width: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '20px' }}>
+      <div className="modal-card" style={{ maxWidth: '880px', width: '94vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '20px' }}>
         
         {/* Header */}
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -58,8 +65,8 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: '#f8fafc', padding: '0 24px' }}>
           {[
             { id: 'overview', label: '👤 Clinical Overview' },
-            { id: 'vitals', label: '📊 Vital Signs & Radar' },
-            { id: 'ai', label: '🤖 AI & Safety Rules' },
+            { id: 'vitals', label: '📊 Vital Signs & Status' },
+            { id: 'ai', label: '🤖 Dynamic AI Decision Support' },
             { id: 'timeline', label: '⏱️ Event Timeline' }
           ].map(tab => (
             <button
@@ -85,8 +92,8 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              {/* Patient Details Cards Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+              {/* Demographics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
                 <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Demographics</div>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', marginTop: '4px' }}>
@@ -102,16 +109,16 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
                 </div>
 
                 <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Department</div>
-                  <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {isCritical ? 'Emergency Trauma / ICU' : patient.pain_scale >= 7 ? 'Urgent Care' : 'General Triage'}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Recommended Dept</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0369a1', marginTop: '4px' }}>
+                    🏥 {department}
                   </div>
                 </div>
 
                 <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Triage Priority</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>AI Confidence</div>
                   <div style={{ fontWeight: 900, fontSize: '1.1rem', color: badgeBg, marginTop: '4px' }}>
-                    Level {11 - Math.min(10, Math.max(1, score))} ({badgeLabel.split(' ')[0]})
+                    {confidence} Confidence
                   </div>
                 </div>
               </div>
@@ -126,7 +133,39 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
                 </p>
               </div>
 
-              {/* Red Flag Warnings */}
+              {/* Extracted Symptoms Tags */}
+              {extractedSymptoms.length > 0 && (
+                <div>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    🔍 Extracted Clinical Symptoms ({extractedSymptoms.length})
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {extractedSymptoms.map((sym, idx) => (
+                      <span key={idx} style={{ background: 'rgba(0,150,199,0.1)', border: '1px solid #0096c7', color: '#0077b6', padding: '5px 12px', borderRadius: '16px', fontWeight: 700, fontSize: '0.85rem' }}>
+                        {sym}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Possible Clinical Concerns (Multi-item Differential) */}
+              {possibleConcerns.length > 0 && (
+                <div>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase' }}>
+                    🏥 Possible Clinical Concerns (Non-Definitive Differential)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {possibleConcerns.map((concern, idx) => (
+                      <div key={idx} style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderLeft: '4px solid #0284c7', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        • {concern}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Red Flags */}
               {patient.all_red_flags && patient.all_red_flags.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase' }}>
@@ -142,7 +181,7 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
                 </div>
               )}
 
-              {/* Medical History & Allergies */}
+              {/* Medical History */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px' }}>
                   <h5 style={{ margin: '0 0 6px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Medical History</h5>
@@ -156,21 +195,6 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
                   </p>
                 </div>
               </div>
-
-              {/* Staff Override History */}
-              {override && (
-                <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '14px', padding: '16px' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '0.9rem', fontWeight: 800, color: '#7c3aed' }}>
-                    🔒 Staff Override Log
-                  </h4>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div><strong>Adjusted Urgency Score:</strong> {override.score}/10</div>
-                    <div><strong>Clinician Reason:</strong> {override.reason}</div>
-                    <div><strong>Staff Member:</strong> {override.staff_name}</div>
-                    <div><strong>Timestamp:</strong> {override.overridden_at}</div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -214,34 +238,57 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
             </div>
           )}
 
-          {/* TAB 3: AI & SAFETY RULES */}
+          {/* TAB 3: DYNAMIC AI DECISION SUPPORT */}
           {activeTab === 'ai' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
+              {/* Rationale Box */}
               <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px' }}>
                 <h4 style={{ margin: '0 0 10px', fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  🤖 Claude AI Clinical Rationale
+                  🤖 Dynamic AI Clinical Rationale
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  {patient.combined_rationale || ai.rationale || 'AI evaluation complete based on vital signs and intake complaint.'}
+                  {patient.combined_rationale || ai.rationale || 'AI evaluation completed based on patient profile and vitals.'}
                 </p>
               </div>
 
-              {rules.rule_notes && rules.rule_notes.length > 0 && (
-                <div style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '14px', padding: '18px' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: '0.95rem', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    🛡️ Deterministic Safety Rules Triggered ({rules.rule_notes.length})
+              {/* Symptom Urgency Contributions Breakdown */}
+              {urgencyContributions.length > 0 && (
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px' }}>
+                  <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', fontWeight: 800, color: '#0077b6' }}>
+                    ⚡ Symptom Urgency Score Contributions
                   </h4>
-                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#92400e', lineHeight: '1.6' }}>
-                    {rules.rule_notes.map((note, idx) => (
-                      <li key={idx}><strong>{note}</strong></li>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+                    {urgencyContributions.map((contrib, cIdx) => (
+                      <li key={cIdx}><strong>{contrib}</strong></li>
                     ))}
                   </ul>
-                  <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#b45309', fontWeight: 700 }}>
-                    Deterministic Rule Boost Applied: +{rules.rule_score_boost || 0} Points
+                </div>
+              )}
+
+              {/* Recommended Next Steps */}
+              {nextSteps.length > 0 && (
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '18px' }}>
+                  <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', fontWeight: 800, color: '#059669' }}>
+                    📋 Recommended Clinical Next Steps
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {nextSteps.map((step, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                        <span style={{ width: '22px', height: '22px', background: '#059669', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 900, flexShrink: 0 }}>
+                          {idx + 1}
+                        </span>
+                        {step}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              {/* Safety Disclaimer */}
+              <div style={{ padding: '12px 16px', background: 'rgba(0,150,199,0.06)', border: '1px solid rgba(0,150,199,0.2)', borderRadius: '10px', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                🛡️ {disclaimer}
+              </div>
             </div>
           )}
 
@@ -250,8 +297,8 @@ export default function PatientProfileModal({ patient, onClose, onOpenOverride, 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '10px 0' }}>
               {[
                 { time: patient.created_at, title: 'Patient Registered at Triage Desk', desc: `Complaining of ${patient.complaint}`, icon: '📝' },
-                { time: patient.created_at, title: 'Vital Signs Recorded', desc: `HR: ${vitals.heart_rate || 'N/A'} bpm, Temp: ${vitals.temperature || 'N/A'}°F, BP: ${vitals.blood_pressure || 'N/A'}`, icon: '🩺' },
-                { time: patient.created_at, title: 'AI & Safety Rule Engine Evaluated', desc: `Assigned Urgency Score: ${score}/10`, icon: '🤖' },
+                { time: patient.created_at, title: 'Vital Signs & Symptoms Evaluated', desc: `HR: ${vitals.heart_rate || 'N/A'} bpm, Temp: ${vitals.temperature || 'N/A'}°F, BP: ${vitals.blood_pressure || 'N/A'}`, icon: '🩺' },
+                { time: patient.created_at, title: 'Dynamic AI & Safety Rule Engine Evaluated', desc: `Assigned Urgency Score: ${score}/10 (Recommended Dept: ${department})`, icon: '🤖' },
                 ...(override ? [{ time: override.overridden_at, title: 'Staff Override Applied', desc: `Score set to ${override.score}/10 by ${override.staff_name}`, icon: '🔒' }] : [])
               ].map((evt, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>

@@ -1,26 +1,36 @@
 /**
  * Claude AI Triage Reasoning Engine (Zero Dependencies)
  * -----------------------------------------------------
- * Uses native fetch to call Anthropic's Claude API.
- * Enforces strict JSON response format, safe Markdown fence stripping, and fallback mock execution.
+ * Uses native fetch to call Anthropic's Claude API or local dynamic multi-symptom engine fallback.
+ * Dynamically analyzes ANY combination of symptoms, vitals, history, and voice inputs.
+ * Enforces strict JSON schema with safe non-definitive clinical decision support phrasing.
  */
 
-const SYSTEM_PROMPT = `You are Vitalis, a Clinical Intake Decision-Support Assistant for ER and Urgent Care triage nurses.
-You assist hospital staff by assessing incoming patient information and providing an initial urgency score, key red flags, and plain-language clinical rationale.
+const SYSTEM_PROMPT = `You are Vitalis, an AI Clinical Intake Decision-Support Assistant for hospital ER and Urgent Care triage staff.
+Your role is to dynamically analyze ANY combination of patient symptoms, vital sign anomalies, age, pain levels, medical history, and clinical inputs without limiting your assessment to predefined conditions.
 
-IMPORTANT CONSTRAINTS & GUIDELINES:
-1. THIS IS A DECISION-SUPPORT TOOL, NOT A DIAGNOSTIC TOOL. Never phrase your output or rationale as a definitive diagnosis or medical claim. Use phrasing like "symptoms suggest", "requires evaluation for", "indicates potential", or "may present risk of".
-2. Assess urgency on a scale of 1 to 10:
-   - 1-3: Low Urgency / Non-Urgent (minor cuts, mild cold symptoms, routine prescription refill)
-   - 4-7: Moderate Urgency (moderate pain, persistent fever, minor fractures, abdominal pain without distress)
-   - 8-10: High / Critical Urgency (chest pain, severe respiratory distress, acute trauma, stroke symptoms, uncontrolled severe pain)
-3. You MUST reply ONLY with a raw, valid JSON object matching this EXACT schema:
+IMPORTANT CONSTRAINTS & CLINICAL GUIDELINES:
+1. THIS IS A CLINICAL DECISION-SUPPORT TOOL, NOT A MEDICAL DIAGNOSIS. Never state a definitive medical diagnosis.
+2. ALWAYS use safe, non-definitive clinical language such as "may indicate", "suggests the possibility of", "requires evaluation for", "could present risk of", or "warrants clinical screening for".
+3. Assess urgency score strictly on a scale of 1 to 10:
+   - 1-3: Low Urgency / Non-Urgent (minor localized complaints, mild cold symptoms, routine checks)
+   - 4-7: Moderate Urgency (moderate pain, persistent fever, minor fractures, GI symptoms, respiratory distress without hypoxia)
+   - 8-10: High / Critical Urgency (chest pain, acute neurological deficits, severe respiratory distress, acute trauma, sepsis risk, altered consciousness)
+4. Extract ALL symptoms present in the complaint and profile, explain how each symptom/vital contributes to the urgency score, list ALL relevant possible clinical concerns (multi-item differential), suggest the most appropriate hospital department, and provide recommended next steps.
+5. You MUST reply ONLY with a raw, valid JSON object matching this EXACT schema:
 {
-  "urgency_score": <integer from 1 to 10>,
-  "red_flags": [<string>, <string>],
-  "rationale": "<1-2 sentence plain-language clinical explanation>"
+  "urgency_score": <integer 1 to 10>,
+  "extracted_symptoms": [<string>, <string>, ...],
+  "symptom_urgency_contributions": [<string>, ...],
+  "possible_clinical_concerns": [<string>, ...],
+  "recommended_department": "<string>",
+  "recommended_next_steps": [<string>, ...],
+  "red_flags": [<string>, ...],
+  "confidence_level": "High" | "Medium" | "Low",
+  "rationale": "<2-3 sentence clinical rationale using safe non-definitive language>",
+  "disclaimer": "Clinical Decision Support Only - Not a Medical Diagnosis"
 }
-4. Do NOT include any markdown formatting, preambles, explanations, or commentary outside of the raw JSON object.
+6. Do NOT include any markdown formatting, preambles, explanations, or commentary outside of the raw JSON object.
 `;
 
 function extractJsonFromText(text) {
@@ -37,92 +47,346 @@ function extractJsonFromText(text) {
   return cleaned.trim();
 }
 
+/**
+ * Clinical Dictionary for Dynamic Symptom & Vital Sign Extraction (40+ concepts)
+ */
+const CLINICAL_DICTIONARY = [
+  {
+    name: "Chest Pain / Pressure",
+    keywords: ["chest pain", "chest pressure", "substernal", "angina", "tightness in chest", "squeezing chest", "chest discomfort"],
+    scoreAdd: 4,
+    dept: "Cardiology / Emergency Department",
+    concerns: ["May indicate Acute Coronary Syndrome (ACS) or Myocardial Ischemia", "Suggests possibility of Pericarditis or Angina Pectoris", "Requires evaluation for Aortic Dissection or Pulmonary Embolism"],
+    steps: ["Stat 12-lead ECG", "Cardiac biomarker panel (Troponin I/T)", "Continuous telemetry monitoring"]
+  },
+  {
+    name: "Shortness of Breath / Respiratory Distress",
+    keywords: ["shortness of breath", "breathlessness", "difficulty breathing", "dyspnea", "wheezing", "gasping", "stridor", "can't breathe", "suffocating"],
+    scoreAdd: 3,
+    dept: "Emergency Respiratory / Critical Care",
+    concerns: ["May indicate Acute Respiratory Distress or Asthma Exacerbation", "Suggests possibility of Pneumonia or COPD Exacerbation", "Requires evaluation for Pulmonary Edema or Airway Compromise"],
+    steps: ["Immediate Pulse Oximetry (SpO2) check", "Supplemental oxygen administration", "Chest Radiograph (X-Ray) / ABG"]
+  },
+  {
+    name: "Fever / Hyperthermia",
+    keywords: ["fever", "high temperature", "pyrexia", "chills", "febrile", "burning up", "hot flashes"],
+    scoreAdd: 2,
+    dept: "Internal Medicine / Infectious Disease",
+    concerns: ["May indicate Systemic Viral or Bacterial Infection", "Suggests possibility of Sepsis when presenting with tachycardia", "Requires evaluation for Inflammatory or Infectious Source"],
+    steps: ["Full blood count (CBC) with differential", "Blood cultures and urinalysis", "Antipyretic administration"]
+  },
+  {
+    name: "Headache / Migraine",
+    keywords: ["headache", "migraine", "head pain", "throbbing head", "cephalea", "temple pain", "pounding head"],
+    scoreAdd: 2,
+    dept: "Neurology / Urgent Care",
+    concerns: ["May indicate Severe Vascular Migraine or Tension Cephalea", "Suggests possibility of Elevated Intracranial Pressure", "Requires evaluation for Meningitis if neck stiffness is present"],
+    steps: ["Targeted neurological screen", "Blood pressure assessment", "Analgesic protocol administration"]
+  },
+  {
+    name: "Dizziness / Vertigo / Syncope",
+    keywords: ["dizziness", "dizzy", "vertigo", "lightheaded", "fainting", "fainted", "syncope", "passed out", "unsteady", "off balance"],
+    scoreAdd: 2,
+    dept: "Neurology / Emergency Department",
+    concerns: ["May indicate Orthostatic Hypotension or Benign Paroxysmal Positional Vertigo", "Suggests possibility of Cardiac Arrhythmia or Transient Ischemic Attack (TIA)", "Requires evaluation for Cerebellar Dysfunction or Dehydration"],
+    steps: ["Orthostatic vital signs check", "ECG screening", "Neurological balance testing"]
+  },
+  {
+    name: "Vomiting / Nausea",
+    keywords: ["vomiting", "vomit", "nausea", "nauseous", "throwing up", "emesis", "retching"],
+    scoreAdd: 2,
+    dept: "Gastroenterology / Urgent Care",
+    concerns: ["May indicate Acute Gastroenteritis or Gastric Intolerance", "Suggests possibility of Dehydration & Electrolyte Imbalance", "Requires evaluation for Bowel Obstruction if accompanied by distension"],
+    steps: ["Hydration status assessment", "Antiemetic therapy administration", "Abdominal physical palpation"]
+  },
+  {
+    name: "Diarrhea",
+    keywords: ["diarrhea", "diarrhoea", "loose stools", "watery stool"],
+    scoreAdd: 1,
+    dept: "Gastroenterology / General Medicine",
+    concerns: ["May indicate Infectious Enteritis or Dietary Intolerance", "Suggests possibility of Hypovolemia / Fluid Deficit"],
+    steps: ["Stool pathogen PCR culture", "Oral / IV rehydration therapy", "Electrolyte panel monitoring"]
+  },
+  {
+    name: "Abdominal Pain / Stomach Ache",
+    keywords: ["abdominal pain", "belly pain", "stomach ache", "stomach pain", "cramping", "rlq pain", "luq pain", "epigastric"],
+    scoreAdd: 2,
+    dept: "General Surgery / Gastroenterology",
+    concerns: ["May indicate Acute Appendicitis or Cholecystitis", "Suggests possibility of Peptic Ulcer Disease or Diverticulitis", "Requires evaluation for Visceral Perforation or Renal Colic"],
+    steps: ["Abdominal ultrasound or CT scan", "NPO status protocol", "Targeted abdominal palpation"]
+  },
+  {
+    name: "Cough / Sore Throat",
+    keywords: ["cough", "coughing", "sore throat", "pharyngitis", "throat pain", "hoarseness", "phlegm", "sputum"],
+    scoreAdd: 1,
+    dept: "Outpatient Clinic / Urgent Care",
+    concerns: ["May indicate Upper Respiratory Tract Infection (URTI)", "Suggests possibility of Streptococcal Pharyngitis or Bronchitis"],
+    steps: ["Rapid Strep / Swab testing", "Symptomatic throat lozenges / anti-inflammatories", "Auscultation of lung fields"]
+  },
+  {
+    name: "Back Pain / Flank Pain",
+    keywords: ["back pain", "flank pain", "lower back pain", "lumbar pain", "spine pain", "cva tenderness"],
+    scoreAdd: 2,
+    dept: "Orthopedics / Urology",
+    concerns: ["May indicate Acute Lumbar Strain or Musculoskeletal Trauma", "Suggests possibility of Nephrolithiasis (Kidney Stones) or Pyelonephritis"],
+    steps: ["Urinalysis for hematuria", "Renal tract imaging / ultrasound", "Pain relief and mobility check"]
+  },
+  {
+    name: "Joint Pain / Neck Pain / Muscle Pain",
+    keywords: ["joint pain", "neck pain", "stiff neck", "nuchal rigidity", "myalgia", "arthralgia", "knee pain", "shoulder pain"],
+    scoreAdd: 2,
+    dept: "Rheumatology / Neurology",
+    concerns: ["May indicate Inflammatory Arthropathy or Musculoskeletal Strain", "Suggests possibility of Meningeal Sign if presenting with nuchal rigidity"],
+    steps: ["Kernig's and Brudzinski's meningeal sign check", "Inflammatory markers (ESR, CRP)", "Joint immobilisation / analgesia"]
+  },
+  {
+    name: "Ear Pain / Eye Pain / Vision Changes",
+    keywords: ["ear pain", "eye pain", "blurred vision", "double vision", "otitis", "ocular pain", "photophobia", "eye redness"],
+    scoreAdd: 2,
+    dept: "Ophthalmology / ENT",
+    concerns: ["May indicate Acute Otitis Media or Corneal Abrasion", "Suggests possibility of Acute Angle-Closure Glaucoma or Optic Neuritis"],
+    steps: ["Ophthalmoscopic / Otoscopic exam", "Intraocular pressure check", "Targeted visual acuity evaluation"]
+  },
+  {
+    name: "Skin Rash / Hives / Swelling",
+    keywords: ["rash", "hives", "skin redness", "itching", "pruritus", "urticaria", "facial swelling", "lip swelling", "edema"],
+    scoreAdd: 2,
+    dept: "Dermatology / Allergy & Immunology",
+    concerns: ["May indicate Dermatitis or Allergic Cutaneous Reaction", "Suggests possibility of Impending Anaphylaxis if facial/lip swelling is present"],
+    steps: ["Airway and breathing assessment", "Antihistamine / Steroid protocol", "Allergen exposure history review"]
+  },
+  {
+    name: "Burns / Thermal Injury",
+    keywords: ["burn", "burns", "scald", "blisters", "skin singed", "thermal injury", "chemical burn"],
+    scoreAdd: 3,
+    dept: "Burn Unit / Trauma Center",
+    concerns: ["May indicate Dermal Thermal Injury requiring fluid resuscitation", "Suggests possibility of Inhalation Injury if facial burns are present"],
+    steps: ["Estimate Total Body Surface Area (TBSA)", "Sterile dressing and cooling", "Parkland formula fluid calculation"]
+  },
+  {
+    name: "Allergic Reaction / Anaphylaxis",
+    keywords: ["allergic reaction", "anaphylaxis", "allergy", "throat tight", "swollen tongue", "bee sting reaction"],
+    scoreAdd: 4,
+    dept: "Emergency Department / Resuscitation",
+    concerns: ["May indicate Severe Systemic Hypersensitivity / Anaphylaxis", "Suggests critical risk of Upper Airway Occlusion"],
+    steps: ["IM Epinephrine administration (stat)", "High-flow oxygen therapy", "Continuous vital airway monitoring"]
+  },
+  {
+    name: "Anxiety / Panic Attack / Palpitations",
+    keywords: ["anxiety", "panic attack", "palpitations", "racing heart", "hyperventilating", "nervousness", "trembling"],
+    scoreAdd: 2,
+    dept: "Psychiatry / Urgent Care",
+    concerns: ["May indicate Acute Panic Disorder or Hyperventilation Syndrome", "Suggests possibility of Cardiac Dysrhythmia presenting as anxiety"],
+    steps: ["12-lead ECG to rule out cardiac etiology", "Calm breathing re-training", "Basic metabolic panel"]
+  },
+  {
+    name: "Weakness / Lethargy / Fatigue",
+    keywords: ["weakness", "lethargy", "fatigue", "feeling weak", "generalized weakness", "prostration", "sluggish"],
+    scoreAdd: 2,
+    dept: "Internal Medicine / Geriatrics",
+    concerns: ["May indicate Systemic Debility or Electrolyte Imbalance", "Suggests possibility of Severe Anemia or Occult Infection"],
+    steps: ["Complete metabolic & electrolyte panel", "Hemoglobin / Hematocrit check", "Infection screening"]
+  },
+  {
+    name: "Loss of Consciousness / Seizures",
+    keywords: ["loss of consciousness", "unconscious", "passed out", "seizure", "convulsions", "epilepsy", "postictal", "blackout"],
+    scoreAdd: 4,
+    dept: "Neurology / Critical Care",
+    concerns: ["May indicate Status Epilepticus or Postictal State", "Suggests possibility of Intracranial Hemorrhage or Severe Hypoxia"],
+    steps: ["Airway protection and recovery position", "Stat Fingerstick Blood Glucose check", "Stat Head CT scan"]
+  },
+  {
+    name: "Trauma / Fractures / Bleeding",
+    keywords: ["trauma", "fracture", "broken bone", "bleeding", "hemorrhage", "cut", "laceration", "fall", "wound", "accident", "contusion"],
+    scoreAdd: 3,
+    dept: "Trauma Center / Orthopedics",
+    concerns: ["May indicate Musculoskeletal Fracture or Deep Laceration", "Suggests possibility of Active Hemorrhage or Compartment Syndrome"],
+    steps: ["Radiographic X-Ray / CT imaging", "Hemostasis and direct pressure", "Neurovascular distal status check"]
+  },
+  {
+    name: "Pregnancy-Related Complaints",
+    keywords: ["pregnant", "pregnancy", "spotting", "vaginal bleeding", "fetal movement", "contractions", "gestational"],
+    scoreAdd: 3,
+    dept: "Obstetrics & Gynecology (OB/GYN)",
+    concerns: ["May indicate Ectopic Pregnancy or Threatened Abortion", "Suggests possibility of Preeclampsia or Placental Abruption"],
+    steps: ["Pelvic ultrasound scan", "Bedside beta-hCG test", "Fetal heart tone auscultation"]
+  },
+  {
+    name: "Urinary Symptoms",
+    keywords: ["urinary", "dysuria", "burning urination", "frequent urination", "hematuria", "blood in urine", "urinary retention"],
+    scoreAdd: 2,
+    dept: "Urology / Urgent Care",
+    concerns: ["May indicate Lower Urinary Tract Infection (Cystitis)", "Suggests possibility of Acute Urinary Retention or Urolithiasis"],
+    steps: ["Urinalysis and urine dipstick", "Urine culture", "Bladder ultrasound scan if retained"]
+  },
+  {
+    name: "Blood Pressure / Blood Sugar Anomalies",
+    keywords: ["high blood pressure", "low blood pressure", "hypertension", "hypotension", "high blood sugar", "low blood sugar", "hyperglycemia", "hypoglycemia"],
+    scoreAdd: 3,
+    dept: "Endocrinology / Cardiology",
+    concerns: ["May indicate Hypertensive Urgency / Crisis or Hypotensive Shock", "Suggests possibility of Diabetic Ketoacidosis (DKA) or Hypoglycemic Stupor"],
+    steps: ["Serial BP monitoring", "Stat point-of-care capillary blood glucose", "Serum electrolytes and ketones"]
+  }
+];
+
+/**
+ * Dynamic Multi-Symptom Local Fallback Engine
+ */
 function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
-  const c = (intake.complaint || "").toLowerCase();
-  const pain = intake.pain_scale || 1;
+  const complaintStr = (intake.complaint || "").toLowerCase();
+  const historyStr = (intake.medical_history || "").toLowerCase();
   const vitals = intake.vitals || {};
+  const painScale = intake.pain_scale || 1;
+  const age = intake.age != null ? Number(intake.age) : null;
 
-  let score = 3;
-  const red_flags = [];
+  const extractedSymptoms = [];
+  const urgencyContributions = [];
+  const possibleConcerns = [];
+  const recommendedSteps = [];
+  const redFlags = [];
+  const departments = new Set();
 
-  // Category A: Immediate Life-Threats (Score 9-10)
-  const life_threats = ["cardiac arrest", "heart attack", "myocardial infarction", "crushing chest pain", "throat swelling", "anaphylaxis", "gunshot", "amputation", "diabetic coma"];
-  if (life_threats.some(k => c.includes(k))) {
-    score = 10;
-    red_flags.push("High-risk acuity: Potential immediate life-threat (cardiac, airway, or catastrophic trauma)");
-  }
-  // Category B: Urgent / Semi-Critical (Score 7-8)
-  else if (["chest pain", "shortness of breath", "difficulty breathing", "numbness", "slurred speech", "fainting", "unresponsive", "seizure", "appendicitis", "vomiting blood", "black stool", "compound fracture", "head injury"].some(k => c.includes(k))) {
-    score = 8;
-    red_flags.push("High-risk acuity: Potential stroke, cardiovascular distress, or internal bleeding");
-  }
-  // Category C: Moderate (Score 5-6)
-  else if (["kidney infection", "migraine", "animal bite", "insect bite", "dehydration", "deep cut", "pneumonia", "fracture", "burn"].some(k => c.includes(k))) {
-    score = 6;
-    red_flags.push("Moderate acuity: Clinical diagnostic workup and pain management required");
-  } else if (pain >= 8) {
-    score = Math.max(score, 7);
-    red_flags.push("Elevated pain score (8+/10)");
+  let score = 2; // Baseline non-urgent score
+
+  // 1. Scan clinical dictionary for matching symptom concepts
+  for (const item of CLINICAL_DICTIONARY) {
+    const matched = item.keywords.filter(kw => complaintStr.includes(kw));
+    if (matched.length > 0) {
+      extractedSymptoms.push(item.name);
+      score += item.scoreAdd;
+      urgencyContributions.push(`${item.name} (+${item.scoreAdd} urgency score)`);
+      departments.add(item.dept);
+      item.concerns.forEach(c => possibleConcerns.push(c));
+      item.steps.forEach(s => recommendedSteps.push(s));
+    }
   }
 
-  // Vitals influence
-  if (vitals.heart_rate && vitals.heart_rate > 110) {
+  // Fallback if no specific dictionary matches
+  if (extractedSymptoms.length === 0) {
+    extractedSymptoms.push("Generalized Clinical Complaint");
+    urgencyContributions.push("Unspecified symptoms require comprehensive physical intake assessment (+2 urgency)");
+    possibleConcerns.push("May indicate non-specific viral syndrome or localized discomfort");
+    possibleConcerns.push("Requires clinical evaluation for accurate triage classification");
+    departments.add("General Triage / Outpatient Clinic");
+    recommendedSteps.push("Perform primary clinical history and physical examination");
+    recommendedSteps.push("Obtain complete set of vital signs");
+  }
+
+  // 2. Evaluate Pain Scale Impact
+  if (painScale >= 8) {
+    score = Math.max(score, score + 2);
+    urgencyContributions.push(`Elevated self-reported pain score (${painScale}/10) (+2 score)`);
+    redFlags.push(`Severe acute pain level reported (${painScale}/10)`);
+    recommendedSteps.push("Initiate acute pain management protocol");
+  } else if (painScale >= 5) {
     score = Math.max(score, score + 1);
-    red_flags.push("Elevated resting heart rate (Tachycardia)");
-  }
-  if (vitals.temperature && vitals.temperature > 101.5) {
-    score = Math.max(score, score + 1);
-    red_flags.push("Pyrexia / Elevated body temperature");
+    urgencyContributions.push(`Moderate pain level reported (${painScale}/10) (+1 score)`);
   }
 
-  // Medical history & age checks in fallback
-  const history = (intake.medical_history || "").toLowerCase();
-  if (intake.age != null) {
-    const ageNum = Number(intake.age);
-    if (ageNum >= 65) {
-      if (["chest", "heart", "breath", "fever", "dizziness"].some(k => c.includes(k))) {
-        score = Math.max(score, 9);
-        red_flags.push("🚨 SAFETY ALERT: Geriatric patient presenting with cardiorespiratory or systemic symptoms");
-      } else {
-        score = Math.max(score, score + 1);
+  // 3. Evaluate Vital Sign Anomalies
+  if (vitals.heart_rate) {
+    const hr = Number(vitals.heart_rate);
+    if (hr > 120 && vitals.temperature && Number(vitals.temperature) > 101.0) {
+      score += 2;
+      urgencyContributions.push(`Tachycardia (${hr} bpm) combined with Fever (${vitals.temperature}°F) (+2 score: Sepsis Risk)`);
+      redFlags.push(`🚨 SAFETY ALERT: High HR (${hr} bpm) + Fever (${vitals.temperature}°F) indicates potential Sepsis`);
+      possibleConcerns.push("Suggests high risk of Systemic Inflammatory Response / Sepsis");
+      recommendedSteps.push("Draw blood cultures x 2 and serum lactate stat");
+    } else if (hr >= 120) {
+      score += 1;
+      urgencyContributions.push(`Elevated resting heart rate (${hr} bpm) (+1 score)`);
+      redFlags.push(`Resting Tachycardia detected (${hr} bpm)`);
+    } else if (hr < 50) {
+      score += 2;
+      urgencyContributions.push(`Bradycardia (${hr} bpm) (+2 score)`);
+      redFlags.push(`Sinus Bradycardia detected (${hr} bpm)`);
+    }
+  }
+
+  if (vitals.temperature) {
+    const temp = Number(vitals.temperature);
+    if (temp >= 103.0) {
+      score += 2;
+      urgencyContributions.push(`Severe High Fever (${temp}°F) (+2 score)`);
+      redFlags.push(`Hyperpyrexia alert (Temperature: ${temp}°F)`);
+    }
+  }
+
+  if (vitals.blood_pressure && vitals.blood_pressure.includes("/")) {
+    try {
+      const parts = vitals.blood_pressure.split("/");
+      const sys = parseInt(parts[0], 10);
+      const dia = parseInt(parts[1], 10);
+      if (sys >= 180 || dia >= 120) {
+        score += 2;
+        urgencyContributions.push(`Hypertensive Crisis Blood Pressure (${vitals.blood_pressure}) (+2 score)`);
+        redFlags.push(`🚨 SAFETY ALERT: Hypertensive Crisis Threshold (BP: ${vitals.blood_pressure})`);
+        possibleConcerns.push("May indicate Hypertensive Emergency / Target Organ Damage");
+      } else if (sys < 90 || dia < 60) {
+        score += 2;
+        urgencyContributions.push(`Hypotension (${vitals.blood_pressure}) (+2 score)`);
+        redFlags.push(`Hypotensive state detected (BP: ${vitals.blood_pressure})`);
+        possibleConcerns.push("Suggests possibility of Circulatory Volume Depletion or Shock");
       }
-    } else if (ageNum <= 2) {
-      score = Math.max(score, score + 1);
-      red_flags.push("Pediatric risk factor: Infant age group (<2 y/o)");
+    } catch (e) {}
+  }
+
+  // 4. Age & Comorbidity Risk Factors
+  if (age !== null) {
+    if (age >= 65) {
+      score += 1;
+      urgencyContributions.push(`Geriatric patient age (${age} y/o) (+1 score factor)`);
+    } else if (age <= 2) {
+      score += 1;
+      urgencyContributions.push(`Infant age group (${age} y/o) (+1 score factor)`);
     }
   }
 
-  if (["heart", "cardiac", "stroke", "diabetes", "asthma", "copd"].some(k => history.includes(k))) {
-    if (["chest", "breath", "difficulty"].some(k => c.includes(k))) {
-      score = Math.max(score, 9);
-      red_flags.push(`🚨 SAFETY ALERT: Cardiorespiratory complaint with comorbid history of ${intake.medical_history}`);
-    } else {
-      score = Math.max(score, score + 1);
+  if (historyStr.length > 0) {
+    if (["heart", "cardiac", "stroke", "diabetes", "asthma", "copd", "cancer"].some(k => historyStr.includes(k))) {
+      score += 1;
+      urgencyContributions.push(`Significant medical history of (${intake.medical_history}) (+1 risk factor)`);
     }
   }
 
+  // Final score clamping
   score = Math.min(10, Math.max(1, score));
 
-  if (red_flags.length === 0) {
-    red_flags.push("Standard triage assessment recommended");
+  // Deduplicate concerns & next steps
+  const uniqueConcerns = Array.from(new Set(possibleConcerns)).slice(0, 4);
+  const uniqueSteps = Array.from(new Set(recommendedSteps)).slice(0, 4);
+  const primaryDept = Array.from(departments)[0] || "Emergency Department";
+
+  if (redFlags.length === 0) {
+    redFlags.push("Standard clinical monitoring and routine vitals screening recommended");
   }
 
-  const rationale = `Symptom profile presents with ${score}/10 estimated urgency based on reported complaint '${intake.complaint}' and pain level ${pain}/10. (${reason})`;
+  const rationale = `Patient presents with an urgency score of ${score}/10 based on identified symptoms (${extractedSymptoms.join(", ")}) and pain level ${painScale}/10. Input data suggests potential clinical risk factors that require tailored evaluation. (${reason})`;
 
   return {
     urgency_score: score,
-    red_flags,
-    rationale
+    extracted_symptoms: extractedSymptoms,
+    symptom_urgency_contributions: urgencyContributions,
+    possible_clinical_concerns: uniqueConcerns,
+    recommended_department: primaryDept,
+    recommended_next_steps: uniqueSteps,
+    red_flags: redFlags,
+    confidence_level: extractedSymptoms.length > 1 ? "High" : "Medium",
+    rationale,
+    disclaimer: "Clinical Decision Support Only - Not a Medical Diagnosis"
   };
 }
 
+/**
+ * Main AI reasoning function
+ */
 async function evaluatePatientAI(intake) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const modelName = process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20241022";
 
   if (!apiKey) {
-    console.log("No ANTHROPIC_API_KEY set. Operating in local heuristic mock mode.");
-    return mockTriageFallback(intake, "Mock AI Engine - API Key Not Configured");
+    console.log("No ANTHROPIC_API_KEY set. Operating in local multi-symptom heuristic engine mode.");
+    return mockTriageFallback(intake, "Mock Multi-Symptom AI Engine - API Key Not Configured");
   }
 
   try {
@@ -141,18 +405,18 @@ async function evaluatePatientAI(intake) {
     const allergiesText = intake.allergies || "None reported";
     const medsText = intake.current_medications || "None reported";
 
-    const userContent = `Patient Intake Summary:
+    const userContent = `Patient Intake Details:
 - Name: ${intake.name}
 - Age: ${ageText}
 - Gender: ${genderText}
 - Chief Complaint: ${intake.complaint}
-- Self-Reported Pain Scale: ${intake.pain_scale}/10
-- Vitals: ${vitalsText}
+- Pain Scale: ${intake.pain_scale}/10
+- Vital Signs: ${vitalsText}
 - Past Medical History: ${historyText}
 - Allergies: ${allergiesText}
-- Active Medications: ${medsText}
+- Current Medications: ${medsText}
 
-Provide JSON triage decision-support object.`;
+Analyze ALL entered symptoms and vitals. Return JSON triage decision-support object following the system instructions.`;
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -163,7 +427,7 @@ Provide JSON triage decision-support object.`;
       },
       body: JSON.stringify({
         model: modelName,
-        max_tokens: 300,
+        max_tokens: 600,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userContent }]
       })
@@ -182,20 +446,21 @@ Provide JSON triage decision-support object.`;
     let score = parseInt(data.urgency_score, 10) || 5;
     score = Math.min(10, Math.max(1, score));
 
-    let red_flags = data.red_flags || [];
-    if (typeof red_flags === "string") {
-      red_flags = [red_flags];
-    }
-    const rationale = data.rationale || "Assessment generated from patient complaint and vitals.";
-
     return {
       urgency_score: score,
-      red_flags,
-      rationale
+      extracted_symptoms: Array.isArray(data.extracted_symptoms) ? data.extracted_symptoms : [intake.complaint],
+      symptom_urgency_contributions: Array.isArray(data.symptom_urgency_contributions) ? data.symptom_urgency_contributions : [`Complaint: ${intake.complaint}`],
+      possible_clinical_concerns: Array.isArray(data.possible_clinical_concerns) ? data.possible_clinical_concerns : ["Requires clinical evaluation"],
+      recommended_department: data.recommended_department || "General Triage",
+      recommended_next_steps: Array.isArray(data.recommended_next_steps) ? data.recommended_next_steps : ["Complete triage screening"],
+      red_flags: Array.isArray(data.red_flags) ? data.red_flags : [],
+      confidence_level: data.confidence_level || "High",
+      rationale: data.rationale || "Patient intake evaluation completed.",
+      disclaimer: "Clinical Decision Support Only - Not a Medical Diagnosis"
     };
   } catch (err) {
-    console.error("Claude API evaluation failed or returned malformed JSON:", err.message);
-    return mockTriageFallback(intake, `AI Fallback active due to API parsing issue: ${err.message.substring(0, 250)}`);
+    console.error("Claude API evaluation failed:", err.message);
+    return mockTriageFallback(intake, `AI Fallback active due to API issue: ${err.message.substring(0, 150)}`);
   }
 }
 

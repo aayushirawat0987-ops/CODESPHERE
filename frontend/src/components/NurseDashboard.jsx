@@ -29,16 +29,15 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
   const modCount = patients.filter((p) => p.effective_urgency_score >= 4 && p.effective_urgency_score < 8).length;
   const lowCount = patients.filter((p) => p.effective_urgency_score < 4).length;
 
-  const totalToday = patients.length + 18; // Includes earlier discharged intake sessions
+  const totalToday = patients.length + 18;
   const avgWaitTime = patients.length > 0 ? Math.round(patients.reduce((acc, p) => acc + (10 - p.effective_urgency_score) * 6, 0) / patients.length) : 12;
 
-  // Helper to determine clinical alert icon
   const getAlertIcon = (complaint = '', flags = []) => {
     const c = complaint.toLowerCase();
     const flagText = flags.join(' ').toLowerCase();
     if (c.includes('stroke') || c.includes('speech') || flagText.includes('fast alert') || c.includes('droop')) return { icon: '🧠', label: 'Stroke Alert', color: '#dc2626' };
     if (c.includes('chest') || c.includes('cardiac') || c.includes('heart')) return { icon: '❤️', label: 'Cardiac Event', color: '#dc2626' };
-    if (flagText.includes('sepsis') || c.includes('fever') && c.includes('heart')) return { icon: '🚨', label: 'Sepsis Risk', color: '#d97706' };
+    if (flagText.includes('sepsis') || (c.includes('fever') && c.includes('heart'))) return { icon: '🚨', label: 'Sepsis Risk', color: '#d97706' };
     if (c.includes('breath') || c.includes('choking') || c.includes('respiratory')) return { icon: '🫁', label: 'Respiratory Distress', color: '#0077b6' };
     if (c.includes('bleed') || c.includes('fracture') || c.includes('gunshot') || c.includes('trauma')) return { icon: '🩸', label: 'Acute Trauma', color: '#b91c1c' };
     return null;
@@ -47,7 +46,7 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
   return (
     <div className="card dashboard-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* HOSPITAL COMMAND CENTER SUMMARY BAR */}
+      {/* COMMAND CENTER SUMMARY BAR */}
       <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '16px', padding: '20px', color: '#fff', boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -64,13 +63,12 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="pulse-dot"></span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00d4ff' }}>SYSTEM OPERATIONAL</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00d4ff' }}>DYNAMIC AI ACTIVE</span>
           </div>
         </div>
 
-        {/* Command Center Stats Grid */}
+        {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
-          
           <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Patients Today</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', marginTop: '2px' }}>{totalToday}</div>
@@ -100,7 +98,6 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Bed Occupancy</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#a855f7', marginTop: '2px' }}>84%</div>
           </div>
-
         </div>
       </div>
 
@@ -138,7 +135,7 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
           <input
             type="text"
             className="input-field search-input"
-            placeholder="Search by patient name, ID (#), or chief complaint..."
+            placeholder="Search by patient name, ID (#), or symptoms..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -149,34 +146,16 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
             className={`filter-btn ${filterSeverity === 'all' && filterDept === 'all' ? 'active' : ''}`}
             onClick={() => { setFilterSeverity('all'); setFilterDept('all'); }}
           >
-            All ({patients.length})
-          </button>
-          <button 
-            className={`filter-btn filter-red ${filterSeverity === 'high' ? 'active' : ''}`}
-            onClick={() => setFilterSeverity('high')}
-          >
-            Critical ({criticalCount})
-          </button>
-          <button 
-            className={`filter-btn filter-yellow ${filterSeverity === 'moderate' ? 'active' : ''}`}
-            onClick={() => setFilterSeverity('moderate')}
-          >
-            Moderate ({modCount})
-          </button>
-          <button 
-            className={`filter-btn filter-green ${filterSeverity === 'low' ? 'active' : ''}`}
-            onClick={() => setFilterSeverity('low')}
-          >
-            Low ({lowCount})
+            All Patients ({patients.length})
           </button>
         </div>
       </div>
 
-      {/* Patients Queue List */}
-      <div className="queue-container">
+      {/* Triage Queue List */}
+      <div className="patient-list">
         {filteredPatients.length === 0 ? (
-          <div className="empty-queue-state">
-            <div className="empty-icon">🏥</div>
+          <div className="empty-state">
+            <span className="empty-icon">🩺</span>
             <h3>No Triage Patients Match Filter</h3>
             <p>Try clearing your search query or click "Demo Surge" above to populate incoming emergency patients.</p>
           </div>
@@ -188,6 +167,10 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
 
             const alertBadge = getAlertIcon(patient.complaint, patient.all_red_flags || []);
             const waitMin = Math.max(0, Math.round((10 - patient.effective_urgency_score) * 7.5));
+            const ai = patient.ai_reasoning || {};
+            const symptoms = ai.extracted_symptoms || [];
+            const concerns = ai.possible_clinical_concerns || [];
+            const dept = ai.recommended_department || (patient.effective_urgency_score >= 8 ? 'Emergency Department' : 'General Triage');
 
             return (
               <div key={patient.id} className={`patient-row ${rowSeverity}`} style={{ transition: 'all 0.3s ease' }}>
@@ -222,6 +205,11 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
                       )}
                     </h3>
 
+                    {/* Department Badge */}
+                    <span style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', padding: '2px 8px', borderRadius: '10px', fontSize: '0.73rem', fontWeight: 700 }}>
+                      🏥 {dept}
+                    </span>
+
                     {/* Alert Type Badge */}
                     {alertBadge && (
                       <span style={{ background: 'rgba(220,38,38,0.1)', border: `1px solid ${alertBadge.color}`, color: alertBadge.color, padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -252,6 +240,25 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
                     <strong>Chief Complaint:</strong> "{patient.complaint}"
                   </p>
 
+                  {/* Extracted Symptoms Tags */}
+                  {symptoms.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', margin: '4px 0 6px' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Symptoms:</span>
+                      {symptoms.map((s, sIdx) => (
+                        <span key={sIdx} style={{ background: 'rgba(0,150,199,0.08)', border: '1px solid rgba(0,150,199,0.25)', color: '#0077b6', padding: '2px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 700 }}>
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Possible Concerns (Non-definitive) */}
+                  {concerns.length > 0 && (
+                    <div style={{ fontSize: '0.78rem', color: '#475569', background: '#f8fafc', borderLeft: '3px solid #0096c7', padding: '4px 10px', borderRadius: '0 6px 6px 0', margin: '4px 0 6px' }}>
+                      <strong>AI Observations:</strong> {concerns.slice(0, 2).join(' • ')}
+                    </div>
+                  )}
+
                   {/* Red Flags List */}
                   {patient.all_red_flags && patient.all_red_flags.length > 0 && (
                     <div className="red-flags-block">
@@ -268,11 +275,11 @@ export default function NurseDashboard({ patients, onOpenOverride, onOpenProfile
 
                   {/* Clinical Rationale */}
                   <div className="rationale-box">
-                    <span className="rationale-label">🧠 AI + Clinical Rule Rationale:</span>
+                    <span className="rationale-label">🧠 AI + Safety Rationale:</span>
                     <p className="rationale-text">{patient.combined_rationale}</p>
                   </div>
 
-                  {/* Staff Override Detail line if applicable */}
+                  {/* Staff Override Detail line */}
                   {patient.is_overridden && patient.override && (
                     <div className="override-detail-banner">
                       <span className="override-icon">🔒</span>

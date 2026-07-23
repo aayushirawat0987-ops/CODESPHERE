@@ -119,143 +119,134 @@ export default function VoiceAnalyzer() {
 
   const handleStopAndAnalyze = () => {
     stopRecording();
-    setTimeout(() => runAnalysis(transcript), 300);
+    setTimeout(() => {
+      runAnalysis(transcript);
+    }, 300);
   };
 
   const handleTextAnalyze = () => {
     runAnalysis(manualText);
   };
 
-  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
-  const cfg = analysis ? SEVERITY_CONFIG[analysis.severity] || SEVERITY_CONFIG.Low : null;
-
-  // Waveform bars
-  const bars = Array.from({ length: 24 }, (_, i) => {
-    const h = isRecording ? 8 + Math.abs(Math.sin((i + pulseLevel * 20) * 0.7)) * 40 : 6;
-    return h;
-  });
+  const cfg = analysis ? (SEVERITY_CONFIG[analysis.severity] || SEVERITY_CONFIG.Low) : null;
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '860px', margin: '0 auto' }}>
       
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.6rem' }}>🎙️</span>
-            Multilingual Voice Symptom Analyzer
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Speak symptoms in any language — AI detects cross-lingual conditions & assigns emergency priority
-          </p>
-        </div>
-
-        {/* Controls: Language Dropdown + Input Mode */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          
-          {/* Language Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Language:</span>
-            <select
-              value={selectedLang}
-              onChange={e => setSelectedLang(e.target.value)}
-              style={{
-                padding: '6px 12px', borderRadius: '10px', border: '1px solid var(--border-color)',
-                background: '#fff', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem',
-                cursor: 'pointer', outline: 'none'
-              }}
-            >
-              {SUPPORTED_LANGUAGES.map(lang => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+      {/* Header Banner */}
+      <div className="card" style={{ background: 'linear-gradient(135deg, #0f172a, #003554)', color: '#fff', padding: '24px 28px', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.8rem' }}>🎙️</span>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-heading)' }}>
+                Voice Symptom Intake & Dynamic NLP
+              </h2>
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: '#94a3b8' }}>
+              Hands-free voice recording with multi-symptom extraction & dynamic clinical decision support.
+            </p>
           </div>
 
-          {/* Mode Toggle */}
-          <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', border: '1px solid var(--border-color)' }}>
-            {['voice', 'text'].map(mode => (
-              <button key={mode} onClick={() => setInputMode(mode)}
-                style={{
-                  padding: '6px 18px', borderRadius: '7px', border: 'none', cursor: 'pointer',
-                  fontWeight: 600, fontSize: '0.85rem', transition: 'all 0.2s',
-                  background: inputMode === mode ? 'linear-gradient(135deg,#0096c7,#005b9f)' : 'transparent',
-                  color: inputMode === mode ? '#fff' : 'var(--text-secondary)',
-                }}>
-                {mode === 'voice' ? '🎤 Voice' : '⌨️ Text'}
-              </button>
-            ))}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setInputMode('voice')}
+              style={{
+                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
+                background: inputMode === 'voice' ? '#0096c7' : 'rgba(255,255,255,0.1)', color: '#fff'
+              }}
+            >
+              🎤 Live Voice Mode
+            </button>
+            <button
+              onClick={() => setInputMode('text')}
+              style={{
+                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
+                background: inputMode === 'text' ? '#0096c7' : 'rgba(255,255,255,0.1)', color: '#fff'
+              }}
+            >
+              ⌨️ Text Mode
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Recorder / Text Input Panel */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
+      {/* Main Interface Card */}
+      <div className="card" style={{ padding: '28px', borderRadius: '16px' }}>
+        
+        {/* Language Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <label style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Select Spoken Language:
+          </label>
+          <select
+            value={selectedLang}
+            onChange={e => setSelectedLang(e.target.value)}
+            disabled={isRecording}
+            style={{
+              padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)',
+              background: '#f8fafc', color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem'
+            }}
+          >
+            {SUPPORTED_LANGUAGES.map(lang => (
+              <option key={lang.code} value={lang.code}>{lang.label}</option>
+            ))}
+          </select>
+        </div>
+
         {inputMode === 'voice' ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
             
-            {/* Waveform Visualizer */}
-            <div style={{
-              width: '100%', maxWidth: '480px', height: '80px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px',
-              background: 'rgba(0,150,199,0.04)', borderRadius: '12px',
-              border: `1px solid ${isRecording ? 'rgba(0,150,199,0.3)' : 'var(--border-color)'}`,
-              padding: '12px', transition: 'border-color 0.3s',
-            }}>
-              {bars.map((h, i) => (
-                <div key={i} style={{
-                  width: '6px', height: `${h}px`, borderRadius: '3px', transition: 'height 0.1s',
-                  background: isRecording
-                    ? `hsl(${200 + i * 4}, 80%, ${40 + h}%)`
-                    : 'var(--border-color)',
+            {/* Visualizer Circle */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {isRecording && (
+                <div style={{
+                  position: 'absolute', width: `${140 + pulseLevel * 60}px`, height: `${140 + pulseLevel * 60}px`,
+                  borderRadius: '50%', background: 'rgba(0,150,199,0.15)', border: '2px solid rgba(0,150,199,0.3)',
+                  transition: 'all 0.1s ease-out', pointerEvents: 'none'
                 }} />
-              ))}
+              )}
+              
+              <button
+                id="voice-record-btn"
+                onClick={isRecording ? handleStopAndAnalyze : startRecording}
+                disabled={isAnalyzing}
+                style={{
+                  width: '110px', height: '110px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  background: isRecording
+                    ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
+                    : 'linear-gradient(135deg, #0096c7, #005b9f)',
+                  color: '#fff', fontSize: '2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: isRecording ? '0 0 30px rgba(220,38,38,0.5)' : '0 8px 24px rgba(0,150,199,0.35)',
+                  transition: 'all 0.2s ease', zIndex: 2
+                }}
+              >
+                {isRecording ? '⏹️' : '🎙️'}
+              </button>
             </div>
 
-            {/* Timer */}
-            {isRecording && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ width: '10px', height: '10px', background: '#dc2626', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1s infinite' }} />
-                <span style={{ fontFamily: 'monospace', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {formatTime(recordingTime)}
-                </span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Listening ({SUPPORTED_LANGUAGES.find(l=>l.code===selectedLang)?.label})...</span>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: isRecording ? '#dc2626' : 'var(--text-primary)' }}>
+                {isRecording ? `Recording... (${formatTime(recordingTime)})` : 'Click microphone to record natural speech intake'}
               </div>
-            )}
-
-            {/* Record Button */}
-            <button
-              id="voice-record-btn"
-              onClick={isRecording ? handleStopAndAnalyze : startRecording}
-              style={{
-                width: '90px', height: '90px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                background: isRecording
-                  ? 'linear-gradient(135deg, #dc2626, #991b1b)'
-                  : 'linear-gradient(135deg, #0096c7, #005b9f)',
-                color: '#fff', fontSize: '2rem',
-                boxShadow: isRecording
-                  ? '0 0 0 8px rgba(220,38,38,0.2), 0 0 30px rgba(220,38,38,0.4)'
-                  : '0 0 0 6px rgba(0,150,199,0.15), 0 8px 24px rgba(0,91,159,0.35)',
-                transition: 'all 0.3s ease',
-                transform: isRecording ? 'scale(1.05)' : 'scale(1)',
-              }}
-            >
-              {isRecording ? '⏹' : '🎤'}
-            </button>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-              {isRecording ? 'Click to stop & analyze' : 'Click to start speaking your symptoms'}
-            </p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                {isRecording ? 'Speak naturally describing all symptoms (chest pain, fever, vomiting, etc.)' : 'Supports natural multi-symptom conversations & combinations'}
+              </p>
+            </div>
 
             {/* Live Transcript */}
             {transcript && (
-              <div style={{
-                width: '100%', background: 'rgba(0,150,199,0.05)', border: '1px solid rgba(0,150,199,0.2)',
-                borderRadius: '10px', padding: '14px 16px',
-              }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>TRANSCRIPT ({selectedLang})</span>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>{transcript}</p>
+              <div style={{ width: '100%', background: 'rgba(0,150,199,0.05)', border: '1px solid rgba(0,150,199,0.2)', borderRadius: '10px', padding: '14px 16px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#0096c7', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  SPEECH TRANSCRIPT ({selectedLang})
+                </span>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.6, margin: 0 }}>"{transcript}"</p>
               </div>
             )}
           </div>
@@ -263,22 +254,20 @@ export default function VoiceAnalyzer() {
           /* Text Input Mode */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <label style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Describe the patient's symptoms in any supported language:
+              Describe the patient's symptoms in any natural spoken phrasing:
             </label>
             <textarea
               id="voice-text-input"
               value={manualText}
               onChange={e => setManualText(e.target.value)}
-              placeholder="e.g. Me duele el pecho y me cuesta respirar / मुझे छाती में दर्द है / J'ai une douleur thoracique..."
+              placeholder="e.g. Patient complains of severe headache, fever for 2 days, dizziness, and repeated vomiting..."
               rows={5}
               style={{
                 width: '100%', padding: '14px', background: '#f1f5f9',
                 border: '1px solid var(--border-color)', borderRadius: '10px',
                 color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '0.95rem',
-                resize: 'vertical', outline: 'none', lineHeight: 1.6,
+                resize: 'vertical', outline: 'none', lineHeight: 1.6
               }}
-              onFocus={e => e.target.style.borderColor = 'var(--accent-cyan)'}
-              onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
             />
             <button
               id="voice-analyze-btn"
@@ -289,108 +278,104 @@ export default function VoiceAnalyzer() {
                 cursor: isAnalyzing || !manualText.trim() ? 'not-allowed' : 'pointer', fontWeight: 700,
                 fontSize: '0.95rem', color: '#fff',
                 background: 'linear-gradient(135deg, #0096c7, #005b9f)',
-                opacity: isAnalyzing || !manualText.trim() ? 0.6 : 1,
-                boxShadow: '0 4px 14px rgba(0,91,159,0.3)', transition: 'all 0.2s',
+                opacity: isAnalyzing || !manualText.trim() ? 0.6 : 1
               }}
             >
-              {isAnalyzing ? '⏳ Analyzing...' : '🔍 Analyze Symptoms'}
+              {isAnalyzing ? '⏳ Analyzing...' : '🔍 Analyze Speech Symptoms'}
             </button>
           </div>
         )}
       </div>
 
-      {/* Error */}
+      {/* Error Banner */}
       {error && (
-        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '10px', padding: '14px 16px', color: '#b91c1c', fontSize: '0.875rem', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-          <span>⚠️</span> <span>{error}</span>
+        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '10px', padding: '14px 16px', color: '#b91c1c', fontSize: '0.875rem' }}>
+          ⚠️ {error}
         </div>
       )}
 
-      {/* Analyzing Indicator */}
+      {/* Loading */}
       {isAnalyzing && (
         <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           <div style={{ width: '36px', height: '36px', border: '3px solid var(--border-color)', borderTopColor: '#0096c7', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
-          Analyzing multilingual symptoms with AI engine...
+          Analyzing speech transcript with Multi-Symptom NLP engine...
         </div>
       )}
 
-      {/* Analysis Result */}
+      {/* Multi-Symptom Analysis Results Card */}
       {analysis && cfg && !isAnalyzing && (
         <div style={{
           background: cfg.bg, border: `1.5px solid ${cfg.border}`, borderRadius: '16px', overflow: 'hidden',
-          boxShadow: `0 8px 30px ${cfg.glow}`,
-          animation: 'modalIn 0.3s ease-out',
+          boxShadow: `0 8px 30px ${cfg.glow}`
         }}>
           {/* Result Header */}
           <div style={{ padding: '20px 24px', borderBottom: `1px solid ${cfg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '2rem' }}>{cfg.emoji}</span>
               <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: cfg.color, marginBottom: '3px' }}>
-                  Detected Condition
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: cfg.color, marginBottom: '3px' }}>
+                  Extracted Clinical Presentation
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: cfg.color }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: cfg.color }}>
                   {analysis.detected_problem}
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', align: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Severity Badge */}
-              <div style={{ background: cfg.color, color: '#fff', padding: '6px 14px', borderRadius: '20px', fontWeight: 800, fontSize: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ background: cfg.color, color: '#fff', padding: '6px 14px', borderRadius: '20px', fontWeight: 800, fontSize: '0.85rem' }}>
                 {analysis.severity} Severity
-              </div>
-              {/* Confidence */}
-              <div style={{ background: 'rgba(255,255,255,0.6)', border: `1px solid ${cfg.border}`, color: cfg.color, padding: '6px 14px', borderRadius: '20px', fontWeight: 700, fontSize: '0.8rem' }}>
-                {analysis.confidence} Confidence
-              </div>
+              </span>
+              <span style={{ background: 'rgba(255,255,255,0.7)', border: `1px solid ${cfg.border}`, color: cfg.color, padding: '6px 14px', borderRadius: '20px', fontWeight: 700, fontSize: '0.8rem' }}>
+                Dept: {analysis.recommended_department || 'General Triage'}
+              </span>
             </div>
           </div>
 
-          {/* Score + Details */}
-          <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: '120px 1fr', gap: '24px', alignItems: 'start' }}>
-            {/* AI Score Dial */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '100px', height: '100px', borderRadius: '50%',
-                background: `conic-gradient(${cfg.color} ${analysis.ai_score * 36}deg, rgba(0,0,0,0.08) 0deg)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: `0 0 20px ${cfg.glow}`,
-              }}>
-                <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: cfg.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '1.6rem', fontWeight: 900, color: cfg.color, fontFamily: 'var(--font-heading)', lineHeight: 1 }}>{analysis.ai_score}</span>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: cfg.color }}>/ 10</span>
+          {/* Details Grid */}
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Extracted Symptoms Tags */}
+            {analysis.detected_symptoms && analysis.detected_symptoms.length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: cfg.color, textTransform: 'uppercase', marginBottom: '8px' }}>
+                  🔍 Identified Symptoms ({analysis.detected_symptoms.length})
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {analysis.detected_symptoms.map((symptom, idx) => (
+                    <span key={idx} style={{ background: '#ffffff', border: `1px solid ${cfg.border}`, color: cfg.color, padding: '5px 12px', borderRadius: '16px', fontSize: '0.82rem', fontWeight: 700 }}>
+                      {symptom}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>AI Score</span>
-            </div>
+            )}
 
-            {/* Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Keywords */}
-              {analysis.keywords_found.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                    🔍 Detected Multilingual Keywords
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {analysis.keywords_found.map(kw => (
-                      <span key={kw} style={{ background: 'rgba(255,255,255,0.6)', border: `1px solid ${cfg.border}`, color: cfg.color, padding: '3px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommendations */}
+            {/* Possible Clinical Concerns (Multi-Item) */}
+            {analysis.possible_clinical_concerns && analysis.possible_clinical_concerns.length > 0 && (
               <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                  📋 Clinical Recommendations
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: cfg.color, textTransform: 'uppercase', marginBottom: '8px' }}>
+                  🏥 Possible Clinical Concerns (Non-Definitive Differential)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {analysis.possible_clinical_concerns.map((concern, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.6)', border: `1px solid ${cfg.border}`, padding: '10px 14px', borderRadius: '10px', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      • {concern}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommended Next Steps */}
+            {analysis.recommendations && analysis.recommendations.length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: cfg.color, textTransform: 'uppercase', marginBottom: '8px' }}>
+                  📋 Recommended Clinical Evaluation Steps
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {analysis.recommendations.map((rec, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                      <span style={{ width: '20px', height: '20px', background: cfg.color, color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 900, flexShrink: 0 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                      <span style={{ width: '22px', height: '22px', background: cfg.color, color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 900, flexShrink: 0 }}>
                         {i + 1}
                       </span>
                       {rec}
@@ -398,50 +383,44 @@ export default function VoiceAnalyzer() {
                   ))}
                 </div>
               </div>
-            </div>
+            )}
+
           </div>
 
           {/* Disclaimer */}
-          <div style={{ padding: '12px 24px', borderTop: `1px solid ${cfg.border}`, background: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            ⚠️ Multilingual decision-support engine. Clinicians retain full diagnostic authority.
+          <div style={{ padding: '12px 24px', borderTop: `1px solid ${cfg.border}`, background: 'rgba(255,255,255,0.4)', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            🛡️ {analysis.disclaimer || 'Clinical Decision Support Only - Not a Medical Diagnosis'}
           </div>
         </div>
       )}
 
-      {/* Analysis History */}
+      {/* History */}
       {history.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '20px' }}>
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            📜 Recent Multilingual Analyses
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)' }}>
+            📜 Recent Voice & Natural Language Assessments
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {history.map((item, i) => {
               const hcfg = SEVERITY_CONFIG[item.result.severity] || SEVERITY_CONFIG.Low;
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: hcfg.bg, border: `2px solid ${hcfg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 900, color: hcfg.color, flexShrink: 0 }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: hcfg.bg, border: `2px solid ${hcfg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 900, color: hcfg.color, flexShrink: 0 }}>
                     {item.result.ai_score}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.875rem', color: hcfg.color }}>{item.result.detected_problem}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      "{item.transcript.slice(0, 60)}{item.transcript.length > 60 ? '...' : ''}"
+                      "{item.transcript}"
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                    <span style={{ background: hcfg.color, color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700 }}>{item.result.severity}</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.timestamp}</span>
-                  </div>
+                  <span style={{ background: hcfg.color, color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700 }}>{item.result.severity}</span>
                 </div>
               );
             })}
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

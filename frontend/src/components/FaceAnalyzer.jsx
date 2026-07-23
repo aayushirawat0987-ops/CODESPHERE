@@ -15,10 +15,14 @@ export default function FaceAnalyzer() {
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState('');
 
-  // Landmark sliders / simulation controls
+  // 8-Point Observation Simulation Controls
   const [simPain, setSimPain] = useState(6);
   const [simDroop, setSimDroop] = useState(false);
   const [simPallor, setSimPallor] = useState(false);
+  const [simCyanosis, setSimCyanosis] = useState(false);
+  const [simSwelling, setSimSwelling] = useState(false);
+  const [simEyeAbnormal, setSimEyeAbnormal] = useState(false);
+  const [simFatigue, setSimFatigue] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -69,14 +73,12 @@ export default function FaceAnalyzer() {
     canvas.height = 480;
     const ctx = canvas.getContext('2d');
 
-    // Background gradient
     const bgGrad = ctx.createLinearGradient(0, 0, 640, 480);
     bgGrad.addColorStop(0, '#0f172a');
     bgGrad.addColorStop(1, '#1e293b');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, 640, 480);
 
-    // Grid lines
     ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
     ctx.lineWidth = 1;
     for (let x = 0; x < 640; x += 40) {
@@ -86,224 +88,125 @@ export default function FaceAnalyzer() {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(640, y); ctx.stroke();
     }
 
-    // Patient face silhouette
-    ctx.fillStyle = simPallor ? '#cbd5e1' : '#fde047';
+    ctx.fillStyle = simCyanosis ? '#94a3b8' : simPallor ? '#cbd5e1' : '#fde047';
     ctx.beginPath();
     ctx.ellipse(320, 230, 110, 140, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
     ctx.arc(280, 200, 14, 0, Math.PI * 2);
     ctx.arc(360, simDroop ? 215 : 200, 14, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eye highlight dots
-    ctx.fillStyle = '#00d4ff';
+    ctx.fillStyle = simCyanosis ? '#3b82f6' : '#00d4ff';
     ctx.beginPath();
     ctx.arc(282, 198, 4, 0, Math.PI * 2);
     ctx.arc(362, simDroop ? 213 : 198, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Mouth / Expression
-    ctx.strokeStyle = '#dc2626';
+    ctx.strokeStyle = simCyanosis ? '#2563eb' : '#dc2626';
     ctx.lineWidth = 4;
     ctx.beginPath();
     if (simPain >= 7) {
-      ctx.arc(320, 290, 25, Math.PI, Math.PI * 2); // Grimace / frown
+      ctx.arc(320, 290, 25, Math.PI, Math.PI * 2);
     } else {
-      ctx.arc(320, 270, 25, 0, Math.PI); // Neutral / smile
+      ctx.arc(320, 270, 25, 0, Math.PI);
     }
     ctx.stroke();
 
-    // AI Landmark Overlay Box
-    ctx.strokeStyle = '#00d4ff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(200, 70, 240, 320);
-
-    // FAST Symmetry Alignment Line
-    ctx.strokeStyle = simDroop ? '#dc2626' : '#10b981';
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(320, 70);
-    ctx.lineTo(320, 390);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Landmark tracking points & mesh lines
-    const points = [
-      [320, 110], // Forehead
-      [280, 200], // Left Eye
-      [360, simDroop ? 215 : 200], // Right Eye
-      [320, 240], // Nose Tip
-      [295, 275], // Left Mouth Corner
-      [345, simDroop ? 290 : 275], // Right Mouth Corner
-      [320, 350]  // Chin
-    ];
-
-    // Connect mesh lines
-    ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
-    ctx.lineWidth = 1.5;
-    const connections = [
-      [0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [3, 5], [4, 6], [5, 6], [1, 4], [2, 5]
-    ];
-    connections.forEach(([p1, p2]) => {
-      ctx.beginPath();
-      ctx.moveTo(points[p1][0], points[p1][1]);
-      ctx.lineTo(points[p2][0], points[p2][1]);
-      ctx.stroke();
-    });
-
-    ctx.fillStyle = '#00d4ff';
-    points.forEach(([px, py]) => {
-      ctx.beginPath();
-      ctx.arc(px, py, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    ctx.fillStyle = '#00d4ff';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('AI VISION SCAN: FACE DETECTED (CONFIDENCE 98.4%)', 140, 48);
-
-    const dataUrl = canvas.toDataURL('image/jpeg');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     setImagePreview(dataUrl);
-    stopWebcam();
     return dataUrl;
   };
 
   const captureSnapshot = () => {
-    if (videoRef.current && videoRef.current.videoWidth) {
+    if (videoRef.current && isCameraActive) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth || 640;
       canvas.height = videoRef.current.videoHeight || 480;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       setImagePreview(dataUrl);
       stopWebcam();
       runFaceAnalysis(dataUrl);
-    } else {
-      const simUrl = generateSimulatedSnapshot();
-      runFaceAnalysis(simUrl);
     }
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target.result;
-      setImagePreview(dataUrl);
-      stopWebcam();
-      runFaceAnalysis(dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const generateClientFallbackAnalysis = (pain, droop, pallor) => {
-    const redFlags = [];
-    const recs = [];
-    let strokeRisk = "Low";
-    let distressLevel = "Moderate";
-    let score = pain;
-
-    if (droop) {
-      strokeRisk = "High";
-      distressLevel = "Critical";
-      score = Math.max(score, 9);
-      redFlags.push("🚨 FAST ALERT: Facial Asymmetry / Unilateral Muscle Droop Detected");
-      recs.push("Immediate Stroke Protocol (FAST assessment)");
-      recs.push("Emergency Non-contrast Head CT Scan");
-      recs.push("Stat Neurology Consult");
-    }
-
-    if (pallor) {
-      score = Math.max(score, score + 1);
-      redFlags.push("⚠️ CLINICAL ALERT: Skin Pallor / Potential Cyanosis Detected");
-      recs.push("Check Pulse Oximetry (SpO2)");
-      recs.push("Assess Circulatory & Hemoglobin Status");
-    }
-
-    if (pain >= 8) {
-      if (distressLevel !== "Critical") distressLevel = "High";
-      redFlags.push("⚠️ High Facial Pain Expression (Grimacing / Micro-contractions)");
-      recs.push("Administer Pain Scale Evaluation");
-      recs.push("Initiate Acute Pain Protocol");
-    }
-
-    if (recs.length === 0) {
-      recs.push("Routine Visual Assessment Clean");
-      recs.push("Proceed with Standard Vital Signs Triage");
-    }
-
-    const expression = pain >= 8 ? "Severe Facial Grimacing & Tension" : pain >= 5 ? "Moderate Facial Distress" : "Neutral / Relaxed";
-
-    return {
-      facial_pain_score: Math.min(10, Math.max(1, score)),
-      distress_level: distressLevel,
-      stroke_asymmetry_risk: strokeRisk,
-      detected_expression: expression,
-      red_flags: redFlags,
-      recommendations: recs,
-      confidence: "High",
-      ai_vision_mode: "Local Vision Engine"
-    };
-  };
-
-  const runFaceAnalysis = async (dataUrl = null) => {
+  const runFaceAnalysis = async (imgBase64 = null) => {
     setIsScanning(true);
     setError('');
-
-    let imgData = dataUrl || imagePreview;
-    if (!imgData) {
-      imgData = generateSimulatedSnapshot();
-    }
-
+    const targetImage = imgBase64 || imagePreview || generateSimulatedSnapshot();
+    
     try {
-      const res = await analyzeFaceImage({
-        image_base64: imgData,
+      const payload = {
+        image_base64: targetImage,
         pain_scale: simPain,
         facial_droop: simDroop,
-        pallor: simPallor
-      });
-      setAnalysis(res);
+        pallor: simPallor,
+        cyanosis: simCyanosis,
+        swelling: simSwelling,
+        eye_abnormal: simEyeAbnormal,
+        fatigue: simFatigue
+      };
+      
+      const result = await analyzeFaceImage(payload);
+      setAnalysis(result);
     } catch (err) {
-      console.warn('API Face analysis fallback triggered:', err.message);
-      // Client-side fallback guarantees uninterrupted operation
-      const fallbackRes = generateClientFallbackAnalysis(simPain, simDroop, simPallor);
-      setAnalysis(fallbackRes);
+      setError('Face analysis failed: ' + err.message);
     } finally {
       setIsScanning(false);
     }
   };
 
-  const cfg = analysis ? DISTRESS_CONFIG[analysis.distress_level] || DISTRESS_CONFIG.Low : null;
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64 = evt.target.result;
+        setImagePreview(base64);
+        stopWebcam();
+        runFaceAnalysis(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const cfg = analysis ? (DISTRESS_CONFIG[analysis.distress_level] || DISTRESS_CONFIG.Low) : null;
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1000px', margin: '0 auto' }}>
       
-      {/* Header */}
-      <div>
-        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '1.6rem' }}>📷</span>
-          AI Facial Distress & Vision Analyzer
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Real-time computer-vision triage scanner detecting facial pain expressions, FAST stroke asymmetry, and pallor
-        </p>
+      {/* Header Banner */}
+      <div className="card" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', padding: '24px 28px', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.8rem' }}>📷</span>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-heading)' }}>
+                Multi-Observation Facial Vision Diagnostic Scanner
+              </h2>
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: '#94a3b8' }}>
+              Evaluates 8 distinct visual clinical observations: Pain expression, FAST Asymmetry, Eye signs, Swelling, Pallor, Cyanosis, Fatigue, and Acute Distress.
+            </p>
+          </div>
+
+          <div style={{ background: 'rgba(0,212,255,0.15)', border: '1px solid #00d4ff', padding: '6px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 800, color: '#00d4ff' }}>
+            ● 8-Point Observation Breakdown
+          </div>
+        </div>
       </div>
 
-      {/* Main Scanner Container */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         
-        {/* Camera / Viewport Card */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
+        {/* Camera & Adjusters Card */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          <div style={{ position: 'relative', width: '100%', height: '280px', background: '#0f172a', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'relative', width: '100%', height: '260px', background: '#0f172a', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             
-            {/* Live Video Feed */}
             {isCameraActive && (
               <video
                 ref={videoRef}
@@ -314,7 +217,6 @@ export default function FaceAnalyzer() {
               />
             )}
 
-            {/* Captured Image Preview */}
             {!isCameraActive && imagePreview && (
               <img
                 src={imagePreview}
@@ -323,7 +225,6 @@ export default function FaceAnalyzer() {
               />
             )}
 
-            {/* Empty Viewport Placeholder */}
             {!isCameraActive && !imagePreview && (
               <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
                 <span style={{ fontSize: '3rem', display: 'block', marginBottom: '8px' }}>👤</span>
@@ -331,36 +232,33 @@ export default function FaceAnalyzer() {
               </div>
             )}
 
-            {/* Facial Scanner Overlay Grid & Target Lock */}
             {(isCameraActive || imagePreview || isScanning) && (
               <>
                 <div style={{
-                  position: 'absolute', inset: '10%', border: simDroop ? '2px dashed #ef4444' : '2px dashed #00d4ff', borderRadius: '50%',
-                  boxShadow: simDroop ? '0 0 20px rgba(239,68,68,0.4)' : '0 0 20px rgba(0,212,255,0.3)', pointerEvents: 'none',
+                  position: 'absolute', inset: '10%', border: simDroop || simCyanosis ? '2px dashed #ef4444' : '2px dashed #00d4ff', borderRadius: '50%',
+                  boxShadow: simDroop || simCyanosis ? '0 0 20px rgba(239,68,68,0.4)' : '0 0 20px rgba(0,212,255,0.3)', pointerEvents: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <div style={{ width: '80%', height: '2px', background: simDroop ? 'linear-gradient(90deg, transparent, #ef4444, transparent)' : 'linear-gradient(90deg, transparent, #00d4ff, transparent)', animation: 'scanLine 2s linear infinite' }} />
+                  <div style={{ width: '80%', height: '2px', background: 'linear-gradient(90deg, transparent, #00d4ff, transparent)', animation: 'scanLine 2s linear infinite' }} />
                 </div>
-                {/* Status Badge */}
                 <div style={{
                   position: 'absolute', top: '12px', left: '12px', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)',
                   border: '1px solid rgba(255,255,255,0.1)', padding: '4px 10px', borderRadius: '20px', color: '#00d4ff', fontSize: '0.75rem', fontWeight: 700
                 }}>
-                  ● LIVE VISION SCAN: {simDroop ? 'FAST ASYMMETRY RISK' : 'FACE LOCK 98.4%'}
+                  ● MULTI-VISION SCAN: {simDroop ? 'FAST ASYMMETRY' : simCyanosis ? 'CYANOSIS HYPOXIA' : 'LOCK 98.6%'}
                 </div>
               </>
             )}
           </div>
 
-          {/* Controls */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {!isCameraActive ? (
               <button
                 onClick={startWebcam}
                 style={{
-                  flex: 1, padding: '12px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-                  fontWeight: 700, fontSize: '0.85rem', color: '#fff',
-                  background: 'linear-gradient(135deg, #0096c7, #005b9f)', boxShadow: '0 4px 14px rgba(0,91,159,0.3)'
+                  flex: 1, padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                  fontWeight: 700, fontSize: '0.85rem', color: '#fff', background: 'linear-gradient(135deg, #0096c7, #005b9f)'
                 }}
               >
                 📹 Start Camera
@@ -369,12 +267,11 @@ export default function FaceAnalyzer() {
               <button
                 onClick={captureSnapshot}
                 style={{
-                  flex: 1, padding: '12px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-                  fontWeight: 700, fontSize: '0.85rem', color: '#fff',
-                  background: 'linear-gradient(135deg, #059669, #047857)', boxShadow: '0 4px 14px rgba(5,150,105,0.3)'
+                  flex: 1, padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                  fontWeight: 700, fontSize: '0.85rem', color: '#fff', background: 'linear-gradient(135deg, #059669, #047857)'
                 }}
               >
-                📸 Capture & Scan
+                📸 Capture Snapshot
               </button>
             )}
 
@@ -384,28 +281,26 @@ export default function FaceAnalyzer() {
                 runFaceAnalysis(url);
               }}
               style={{
-                flex: 1, padding: '12px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-                fontWeight: 700, fontSize: '0.85rem', color: '#fff',
-                background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 14px rgba(124,58,237,0.3)'
+                flex: 1, padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                fontWeight: 700, fontSize: '0.85rem', color: '#fff', background: 'linear-gradient(135deg, #7c3aed, #5b21b6)'
               }}
             >
               ⚡ AI Face Snapshot
             </button>
 
             <label style={{
-              padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border-color)',
-              cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)',
-              background: '#f8fafc', textAlign: 'center'
+              padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)',
+              cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', background: '#f8fafc'
             }}>
-              📁 Upload Photo
+              📁 Upload
               <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
             </label>
           </div>
 
-          {/* Quick Simulation Toggles */}
+          {/* 8-Point Visual Adjusters Panel */}
           <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-              Facial Landmark & Clinical Adjusters
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              🎛️ Clinical Visual Feature Adjusters
             </span>
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
@@ -413,14 +308,24 @@ export default function FaceAnalyzer() {
               <input type="range" min="1" max="10" value={simPain} onChange={e => setSimPain(Number(e.target.value))} style={{ width: '120px' }} />
             </div>
 
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', cursor: 'pointer' }}>
-                <input type="checkbox" checked={simDroop} onChange={e => setSimDroop(e.target.checked)} />
-                Facial Droop (FAST Sign)
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simDroop} onChange={e => setSimDroop(e.target.checked)} /> FAST Facial Droop
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', cursor: 'pointer' }}>
-                <input type="checkbox" checked={simPallor} onChange={e => setSimPallor(e.target.checked)} />
-                Skin Pallor / Cyanosis
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simPallor} onChange={e => setSimPallor(e.target.checked)} /> Skin Pallor
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simCyanosis} onChange={e => setSimCyanosis(e.target.checked)} /> Perioral Cyanosis
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simSwelling} onChange={e => setSimSwelling(e.target.checked)} /> Facial Swelling
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simEyeAbnormal} onChange={e => setSimEyeAbnormal(e.target.checked)} /> Eye Ptosis / Redness
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={simFatigue} onChange={e => setSimFatigue(e.target.checked)} /> Fatigue / Lethargy
               </label>
             </div>
 
@@ -429,18 +334,18 @@ export default function FaceAnalyzer() {
               disabled={isScanning}
               style={{
                 padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                fontWeight: 700, fontSize: '0.85rem', color: '#fff', background: '#0284c7'
+                fontWeight: 800, fontSize: '0.85rem', color: '#fff', background: '#0284c7', marginTop: '4px'
               }}
             >
-              {isScanning ? '⏳ Scanning Face...' : '🔍 Analyze Facial Indicators'}
+              {isScanning ? '⏳ Evaluating 8 Facial Observations...' : '🔍 Analyze All 8 Observations'}
             </button>
           </div>
         </div>
 
-        {/* Results Panel */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', pb: '12px' }}>
-            Facial Vision Diagnostic Results
+        {/* 8-Point Observation Results Panel */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', margin: 0 }}>
+            Facial Observation Assessment
           </h3>
 
           {error && (
@@ -452,80 +357,65 @@ export default function FaceAnalyzer() {
           {isScanning && (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
               <div style={{ width: '40px', height: '40px', border: '3px solid var(--border-color)', borderTopColor: '#0096c7', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
-              Running Facial Neural Vision Model...
+              Analyzing 8 distinct visual observations...
             </div>
           )}
 
           {!analysis && !isScanning && (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Start camera, take a snapshot, or click 'Analyze Facial Indicators' to view vision AI triage feedback.
+              Click 'Analyze All 8 Observations' to view individual findings for Pain expression, Facial asymmetry, Eye signs, Swelling, Pallor, Cyanosis, Fatigue, and Distress.
             </div>
           )}
 
           {analysis && cfg && !isScanning && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'modalIn 0.3s ease-out' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* Summary Card */}
-              <div style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}`, borderRadius: '14px', padding: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '1.4rem' }}>{cfg.emoji}</span>
-                  <span style={{ background: cfg.color, color: '#fff', padding: '4px 12px', borderRadius: '12px', fontWeight: 800, fontSize: '0.75rem' }}>
-                    {analysis.distress_level} Distress
-                  </span>
+              {/* Summary Banner */}
+              <div style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}`, borderRadius: '14px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: cfg.color }}>{analysis.detected_expression}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Engine: {analysis.ai_vision_mode}</div>
                 </div>
-                <div style={{ fontWeight: 800, fontSize: '1.1rem', color: cfg.color, marginBottom: '4px' }}>
-                  {analysis.detected_expression}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Vision Mode: <strong>{analysis.ai_vision_mode}</strong>
-                </div>
+                <span style={{ background: cfg.color, color: '#fff', padding: '4px 12px', borderRadius: '12px', fontWeight: 800, fontSize: '0.8rem' }}>
+                  {analysis.distress_level} Distress
+                </span>
               </div>
 
-              {/* Metrics Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Pain Index</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: cfg.color }}>{analysis.facial_pain_score}/10</div>
-                </div>
-                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>FAST Stroke Risk</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: analysis.stroke_asymmetry_risk === 'High' ? '#dc2626' : '#059669' }}>
-                    {analysis.stroke_asymmetry_risk}
-                  </div>
-                </div>
-              </div>
-
-              {/* Red Flags */}
-              {analysis.red_flags.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#dc2626' }}>Red Flag Alerts</span>
-                  {analysis.red_flags.map((flag, idx) => (
-                    <div key={idx} style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '8px 12px', color: '#b91c1c', fontSize: '0.8rem', fontWeight: 600 }}>
-                      {flag}
+              {/* 8 Observations Breakdown List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  Evaluated Observations Breakdown (8 Items)
+                </span>
+                
+                {(analysis.observations_breakdown || []).map((obs, idx) => {
+                  const isBad = obs.severity === 'High' || obs.severity === 'Critical';
+                  const isMod = obs.severity === 'Moderate';
+                  const obsColor = isBad ? '#dc2626' : isMod ? '#d97706' : '#059669';
+                  const obsBg = isBad ? 'rgba(220,38,38,0.06)' : isMod ? 'rgba(217,119,6,0.06)' : '#f8fafc';
+                  
+                  return (
+                    <div key={idx} style={{ background: obsBg, border: `1px solid ${isBad ? 'rgba(239,68,68,0.3)' : 'var(--border-color)'}`, borderRadius: '10px', padding: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{obs.name}</strong>
+                        <span style={{ background: obsColor, color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 800 }}>
+                          {obs.status}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                        {obs.explanation}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Clinical Recommendations */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Clinical Next Steps</span>
-                {analysis.recommendations.map((rec, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', color: 'var(--text-primary)' }}>
-                    <span style={{ width: '18px', height: '18px', background: '#0096c7', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800 }}>
-                      {idx + 1}
-                    </span>
-                    {rec}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
             </div>
           )}
         </div>
       </div>
 
       <style>{`
-        @keyframes scanLine { 0% { transform: translateY(-100px); } 100% { transform: translateY(100px); } }
+        @keyframes scanLine { 0% { transform: translateY(-90px); } 100% { transform: translateY(90px); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>

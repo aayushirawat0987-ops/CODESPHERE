@@ -30,7 +30,7 @@ const { evaluateClinicalRules } = require("./ruleEngine");
 const { evaluatePatientAI } = require("./aiEngine");
 const { evaluateFaceImage } = require("./faceEngine");
 const { SURGE_PATIENTS } = require("./surgeData");
-const { VOICE_SYMPTOM_MAP } = require("./voiceSymptomMap");
+const { analyzeVoiceTranscriptNLP } = require("./voiceSymptomMap");
 
 const PORT = parseInt(process.env.PORT || "8000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -60,21 +60,24 @@ async function runSurgeSimulationBatch() {
       name: String(p.name),
       complaint: String(p.complaint),
       pain_scale: parseInt(p.pain_scale, 10),
-      vitals: vitalsObj
+      vitals: vitalsObj,
+      age: p.age || null,
+      gender: p.gender || null,
+      medical_history: p.medical_history || null
     };
 
     const ruleRes = evaluateClinicalRules({
       vitals: vitalsObj,
       pain_scale: intake.pain_scale,
       complaint: intake.complaint,
-      medical_history: "",
-      age: null
+      medical_history: intake.medical_history || "",
+      age: intake.age || null
     });
 
     const aiRes = await evaluatePatientAI(intake);
     db.addPatient(intake, aiRes, ruleRes);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 400));
   }
 }
 
@@ -196,43 +199,11 @@ const server = http.createServer(async (req, res) => {
       return json({ status: "success", message: "Calendar patient deleted" });
     }
 
-    // POST /api/voice-analysis
+    // POST /api/voice-analysis (Multi-symptom NLP voice transcript analysis)
     if (pathname === "/api/voice-analysis" && req.method === "POST") {
       const body = await readJsonBody(req);
-      const text = (body.transcript || "").toLowerCase();
-      let bestMatch = null;
-      let bestScore = 0;
-      let allKeywordsFound = [];
-
-      for (const entry of VOICE_SYMPTOM_MAP) {
-        const matched = entry.keywords.filter(kw => text.includes(kw));
-        if (matched.length > bestScore) {
-          bestScore = matched.length;
-          bestMatch = entry;
-          allKeywordsFound = matched;
-        }
-      }
-
-      if (!bestMatch) {
-        return json({
-          detected_problem: "General Complaint / Unspecified Symptoms",
-          severity: "Low",
-          ai_score: 2,
-          keywords_found: [],
-          recommendations: ["Full clinical assessment needed", "Document patient history", "Nurse triage evaluation"],
-          confidence: "Low"
-        });
-      }
-
-      const confidence = bestScore >= 2 ? "High" : "Medium";
-      return json({
-        detected_problem: bestMatch.problem,
-        severity: bestMatch.severity,
-        ai_score: bestMatch.score,
-        keywords_found: allKeywordsFound,
-        recommendations: bestMatch.recs,
-        confidence
-      });
+      const result = analyzeVoiceTranscriptNLP(body.transcript);
+      return json(result);
     }
 
     // POST /api/voice-intake (Auto-creates patient record from voice transcript)
@@ -261,7 +232,7 @@ const server = http.createServer(async (req, res) => {
       return json(record, 201);
     }
 
-    // POST /api/face-analysis (Facial distress and FAST vision analysis)
+    // POST /api/face-analysis (Facial distress and FAST vision analysis across 8 visual observations)
     if (pathname === "/api/face-analysis" && req.method === "POST") {
       const body = await readJsonBody(req);
       const result = await evaluateFaceImage(body);
