@@ -4,7 +4,10 @@ import Sidebar from './components/Sidebar';
 import LoginPage from './components/LoginPage';
 import ProtectedComponent from './components/ProtectedComponent';
 import PatientForm from './components/PatientForm';
-import NurseDashboard from './components/NurseDashboard';
+import NurseDashboardView from './components/NurseDashboardView';
+import DoctorDashboardView from './components/DoctorDashboardView';
+import PatientDashboardView from './components/PatientDashboardView';
+import AdminDashboardView from './components/AdminDashboardView';
 import OverrideModal from './components/OverrideModal';
 import PatientProfileModal from './components/PatientProfileModal';
 import MedicalReportModal from './components/MedicalReportModal';
@@ -12,17 +15,13 @@ import AnalyticsView from './components/AnalyticsView';
 import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
 import FaceAnalyzer from './components/FaceAnalyzer';
-import ContactPage from './components/ContactPage';
-import DoctorDashboardView from './components/DoctorDashboardView';
-import PatientDashboardView from './components/PatientDashboardView';
-import AdminDashboardView from './components/AdminDashboardView';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
   // App authentication state
   const [currentUser, setCurrentUser] = useState(null); // null when unauthenticated
-  const [currentView, setCurrentView] = useState('triage'); // 'triage' | 'doctor_dashboard' | 'patient_dashboard' | 'admin_dashboard' | 'calendar' | 'analytics' | 'voice' | 'face'
+  const [currentView, setCurrentView] = useState('doc_dash'); // Role-based dynamic view
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Multi-Language & Audience View Mode States
@@ -104,7 +103,7 @@ export default function App() {
     try {
       const newRecord = await submitIntake(patientData);
       showToast(`✅ Intake processed for ${newRecord.name} (Assigned ID: ${newRecord.patient_id})`);
-      resetForm();
+      if (resetForm) resetForm();
       loadPatients();
     } catch (err) {
       alert(`Intake Submission Failed: ${err.message}`);
@@ -157,11 +156,20 @@ export default function App() {
     setCurrentUser(user);
     showToast(`🔑 Welcome, ${user.name} (${user.role.toUpperCase()})`);
     
-    // Role-based initial view routing
-    if (user.role === 'doctor') setCurrentView('doctor_dashboard');
-    else if (user.role === 'patient') { setCurrentView('patient_dashboard'); setAudienceMode('patient'); }
-    else if (user.role === 'admin') setCurrentView('admin_dashboard');
-    else setCurrentView('triage');
+    // Set default initial view based on role
+    if (user.role === 'doctor') {
+      setCurrentView('doc_dash');
+      setAudienceMode('clinician');
+    } else if (user.role === 'nurse') {
+      setCurrentView('nurse_dash');
+      setAudienceMode('clinician');
+    } else if (user.role === 'patient') {
+      setCurrentView('pat_home');
+      setAudienceMode('patient');
+    } else if (user.role === 'admin') {
+      setCurrentView('admin_dash');
+      setAudienceMode('clinician');
+    }
   };
 
   const handleLogout = () => {
@@ -169,7 +177,7 @@ export default function App() {
     showToast('🚪 Logged out successfully');
   };
 
-  // If unauthenticated, show modern hospital login page
+  // If unauthenticated, render modern hospital login page
   if (!currentUser) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
@@ -211,47 +219,8 @@ export default function App() {
       {/* Main Workspace Area */}
       <main className="main-content" style={{ marginLeft: mainMarginLeft, transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)', padding: '24px' }}>
         
-        {/* View 1: Triage Dashboard & Queue */}
-        {currentView === 'triage' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['nurse', 'doctor', 'admin', 'patient']} onRedirectLogin={handleLogout}>
-            <div className="grid-layout">
-              <aside className="column-intake">
-                <PatientForm
-                  onSubmit={handleIntakeSubmit}
-                  isLoading={isLoadingIntake}
-                  lang={audienceMode === 'patient' ? patientLang : staffLang}
-                />
-              </aside>
-              <section className="column-dashboard">
-                <NurseDashboard
-                  patients={patients}
-                  onOpenOverride={(p) => setOverridePatient(p)}
-                  onOpenProfile={(p) => setProfilePatient(p)}
-                  onOpenReport={(p) => setReportPatient(p)}
-                  lastUpdated={lastUpdated}
-                  patientLang={patientLang}
-                  staffLang={staffLang}
-                  audienceMode={audienceMode}
-                />
-              </section>
-            </div>
-          </ProtectedComponent>
-        )}
-
-        {/* View 2: Doctor Workspace */}
-        {currentView === 'doctor_dashboard' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'admin']} onRedirectLogin={handleLogout}>
-            <DoctorDashboardView
-              patients={patients}
-              currentUser={currentUser}
-              onOpenOverride={(p) => setOverridePatient(p)}
-              onOpenReport={(p) => setReportPatient(p)}
-            />
-          </ProtectedComponent>
-        )}
-
-        {/* View 3: Patient Personal Portal */}
-        {currentView === 'patient_dashboard' && (
+        {/* PATIENT VIEWS */}
+        {(currentView === 'pat_home' || currentView === 'pat_reports' || currentView === 'pat_profile') && (
           <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
             <PatientDashboardView
               currentUser={currentUser}
@@ -262,8 +231,50 @@ export default function App() {
           </ProtectedComponent>
         )}
 
-        {/* View 4: Admin Settings & Audit Center */}
-        {currentView === 'admin_dashboard' && (
+        {currentView === 'pat_symptoms' && (
+          <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
+            <div style={{ maxWidth: '750px', margin: '0 auto' }}>
+              <PatientForm
+                onSubmit={handleIntakeSubmit}
+                isLoading={isLoadingIntake}
+                lang={patientLang}
+              />
+            </div>
+          </ProtectedComponent>
+        )}
+
+        {/* DOCTOR VIEWS */}
+        {(currentView === 'doc_dash' || currentView === 'doc_patients' || currentView === 'doc_timeline' || currentView === 'doc_ai_reports' || currentView === 'doc_notes' || currentView === 'doc_prescriptions') && (
+          <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'admin']} onRedirectLogin={handleLogout}>
+            <DoctorDashboardView
+              patients={patients}
+              currentUser={currentUser}
+              onOpenOverride={(p) => setOverridePatient(p)}
+              onOpenReport={(p) => setReportPatient(p)}
+            />
+          </ProtectedComponent>
+        )}
+
+        {/* NURSE VIEWS */}
+        {(currentView === 'nurse_dash' || currentView === 'nurse_registration' || currentView === 'nurse_queue' || currentView === 'nurse_vitals' || currentView === 'nurse_admissions') && (
+          <ProtectedComponent currentUser={currentUser} allowedRoles={['nurse', 'admin']} onRedirectLogin={handleLogout}>
+            <NurseDashboardView
+              patients={patients}
+              onIntakeSubmit={handleIntakeSubmit}
+              isLoadingIntake={isLoadingIntake}
+              onOpenOverride={(p) => setOverridePatient(p)}
+              onOpenProfile={(p) => setProfilePatient(p)}
+              onOpenReport={(p) => setReportPatient(p)}
+              lastUpdated={lastUpdated}
+              patientLang={patientLang}
+              staffLang={staffLang}
+              audienceMode={audienceMode}
+            />
+          </ProtectedComponent>
+        )}
+
+        {/* ADMIN VIEWS */}
+        {(currentView === 'admin_dash' || currentView === 'admin_patients' || currentView === 'admin_doctors' || currentView === 'admin_nurses' || currentView === 'admin_depts' || currentView === 'admin_logs') && (
           <ProtectedComponent currentUser={currentUser} allowedRoles={['admin']} onRedirectLogin={handleLogout}>
             <AdminDashboardView
               patients={patients}
@@ -272,14 +283,13 @@ export default function App() {
           </ProtectedComponent>
         )}
 
-        {/* View 5: Analytics */}
+        {/* COMMON SHARED VIEWS WITH ACCESS CONTROL */}
         {currentView === 'analytics' && (
           <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
             <AnalyticsView patients={patients} />
           </ProtectedComponent>
         )}
 
-        {/* View 6: Calendar */}
         {currentView === 'calendar' && (
           <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin', 'patient']} onRedirectLogin={handleLogout}>
             <CalendarView
@@ -289,18 +299,20 @@ export default function App() {
           </ProtectedComponent>
         )}
 
-        {/* View 7: Voice AI */}
         {currentView === 'voice' && (
-          <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <VoiceAnalyzer />
-          </div>
+          <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
+            <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+              <VoiceAnalyzer />
+            </div>
+          </ProtectedComponent>
         )}
 
-        {/* View 8: Face Diagnostic Scanner */}
         {currentView === 'face' && (
-          <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
-            <FaceAnalyzer />
-          </div>
+          <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
+            <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
+              <FaceAnalyzer />
+            </div>
+          </ProtectedComponent>
         )}
       </main>
 

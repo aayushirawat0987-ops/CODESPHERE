@@ -1,5 +1,5 @@
 {
-  "patient_id_counter": 2,
+  "patient_id_counter": 3,
   "users": [
     {
       "id": "usr_doc_1",
@@ -40,6 +40,42 @@
       "email": "admin@vitalis.org",
       "phone": "+1 (555) 999-0000",
       "department": "Hospital Administration"
+    },
+    {
+      "id": "usr_1784824435845_4ks3",
+      "patient_id": null,
+      "username": "DR.DEV SHARMA",
+      "password": "DEVSHARMA1",
+      "name": "Dr.Dev Sharma",
+      "role": "doctor",
+      "email": "devsharma21@gmail.com",
+      "phone": "+91 9786799876",
+      "department": "Cardiology / ER",
+      "created_at": "2026-07-23T16:33:55.845Z"
+    },
+    {
+      "id": "usr_1784824537259_ouff",
+      "patient_id": "VIT-2026-000002",
+      "username": "AAYUSHI RAWAT",
+      "password": "AAYUSHI12",
+      "name": "AAYUSHI RAWAT",
+      "role": "patient",
+      "email": "aayushirawat0987@gmail.com",
+      "phone": "+919259134110",
+      "department": "Cardiology / ER",
+      "created_at": "2026-07-23T16:35:37.260Z"
+    },
+    {
+      "id": "usr_1784824664230_znlq",
+      "patient_id": null,
+      "username": "AAYUSH",
+      "password": "AAYUSH1",
+      "name": "AAYUSH",
+      "role": "admin",
+      "email": "aayushi@gmail.com",
+      "phone": "+919259178687",
+      "department": "ADMIN",
+      "created_at": "2026-07-23T16:37:44.230Z"
     }
   ],
   "patients": [
@@ -168,6 +204,36 @@
   ],
   "appointments": [],
   "audit_logs": [
+    {
+      "id": "log_1784824664230_t35a",
+      "timestamp": "2026-07-23 16:37:44",
+      "date": "2026-07-23",
+      "userId": "usr_1784824664230_znlq",
+      "username": "AAYUSH",
+      "role": "admin",
+      "action": "USER_REGISTERED",
+      "details": "Created account AAYUSH (ID: Staff)"
+    },
+    {
+      "id": "log_1784824537260_41lv",
+      "timestamp": "2026-07-23 16:35:37",
+      "date": "2026-07-23",
+      "userId": "usr_1784824537259_ouff",
+      "username": "AAYUSHI RAWAT",
+      "role": "patient",
+      "action": "USER_REGISTERED",
+      "details": "Created account AAYUSHI RAWAT (ID: VIT-2026-000002)"
+    },
+    {
+      "id": "log_1784824435845_dzg4",
+      "timestamp": "2026-07-23 16:33:55",
+      "date": "2026-07-23",
+      "userId": "usr_1784824435845_4ks3",
+      "username": "DR.DEV SHARMA",
+      "role": "doctor",
+      "action": "USER_REGISTERED",
+      "details": "Created account Dr.Dev Sharma (ID: Staff)"
+    },
     {
       "id": "log_1784824037992_1oo2",
       "timestamp": "2026-07-23 16:27:17",

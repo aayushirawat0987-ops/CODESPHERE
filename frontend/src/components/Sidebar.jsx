@@ -10,18 +10,52 @@ export default function Sidebar({
 }) {
   const role = currentUser ? currentUser.role : 'guest';
 
-  const menuItems = [
-    { id: 'triage', label: '🏠 Dashboard & Queue', icon: '🩺', roles: ['doctor', 'nurse', 'admin', 'patient'] },
-    { id: 'doctor_dashboard', label: '👨‍⚕️ Doctor Workspace', icon: '🩺', roles: ['doctor', 'admin'] },
-    { id: 'patient_dashboard', label: '👤 Patient Portal', icon: '👤', roles: ['patient', 'doctor', 'nurse', 'admin'] },
-    { id: 'admin_dashboard', label: '⚙️ Admin Settings', icon: '⚙️', roles: ['admin'] },
-    { id: 'calendar', label: '📅 Calendar & Appts', icon: '📅', roles: ['doctor', 'nurse', 'admin', 'patient'] },
-    { id: 'analytics', label: '📊 Hospital Analytics', icon: '📊', roles: ['doctor', 'nurse', 'admin'] },
-    { id: 'voice', label: '🎙️ Voice AI NLP', icon: '🎙️', roles: ['doctor', 'nurse', 'admin', 'patient'] },
-    { id: 'face', label: '📷 Face Vision Scanner', icon: '📷', roles: ['doctor', 'nurse', 'admin', 'patient'] },
+  // Role-Specific Distinct Navigation Menus
+  const PATIENT_MENU = [
+    { id: 'pat_home', label: '🏠 Home Dashboard', icon: '🏠' },
+    { id: 'pat_symptoms', label: '🩺 AI Symptom Check', icon: '🩺' },
+    { id: 'voice', label: '🎙️ Voice Analysis', icon: '🎙️' },
+    { id: 'face', label: '📷 Face Analysis', icon: '📷' },
+    { id: 'calendar', label: '📅 My Appointments', icon: '📅' },
+    { id: 'pat_reports', label: '📄 Reports & Prescriptions', icon: '📄' },
+    { id: 'pat_profile', label: '👤 Personal Profile', icon: '👤' },
   ];
 
-  const allowedItems = menuItems.filter(item => item.roles.includes(role));
+  const DOCTOR_MENU = [
+    { id: 'doc_dash', label: '🏠 Doctor Dashboard', icon: '🩺' },
+    { id: 'doc_patients', label: '📋 Assigned Patients', icon: '📋' },
+    { id: 'doc_timeline', label: '📜 Medical History', icon: '📜' },
+    { id: 'doc_ai_reports', label: '🤖 AI Differential Reports', icon: '🤖' },
+    { id: 'doc_notes', label: '📝 Consultation Notes', icon: '📝' },
+    { id: 'doc_prescriptions', label: '💊 Prescriptions Writer', icon: '💊' },
+    { id: 'calendar', label: '📅 Appointment Schedule', icon: '📅' },
+    { id: 'analytics', label: '📊 Hospital Analytics', icon: '📊' },
+  ];
+
+  const NURSE_MENU = [
+    { id: 'nurse_dash', label: '🏠 Nurse Dashboard', icon: '🩺' },
+    { id: 'nurse_registration', label: '📋 Patient Registration', icon: '📋' },
+    { id: 'nurse_queue', label: '🚨 Live Triage Queue', icon: '🚨' },
+    { id: 'nurse_vitals', label: '📊 Vital Signs Recording', icon: '📊' },
+    { id: 'nurse_admissions', label: '🏥 Admissions & Discharges', icon: '🏥' },
+    { id: 'calendar', label: '📅 Appointments Queue', icon: '📅' },
+  ];
+
+  const ADMIN_MENU = [
+    { id: 'admin_dash', label: '🏠 Admin Command Center', icon: '⚙️' },
+    { id: 'admin_patients', label: '👥 Patients Directory', icon: '👥' },
+    { id: 'admin_doctors', label: '👨‍⚕️ Doctor Management', icon: '👨‍⚕️' },
+    { id: 'admin_nurses', label: '🩺 Nurse Management', icon: '🩺' },
+    { id: 'admin_depts', label: '🏥 Bed & Department Control', icon: '🏥' },
+    { id: 'calendar', label: '📅 Appointments Overview', icon: '📅' },
+    { id: 'analytics', label: '📊 System Analytics', icon: '📊' },
+    { id: 'admin_logs', label: '📜 System Audit Trail', icon: '📜' },
+  ];
+
+  let activeMenu = PATIENT_MENU;
+  if (role === 'doctor') activeMenu = DOCTOR_MENU;
+  else if (role === 'nurse') activeMenu = NURSE_MENU;
+  else if (role === 'admin') activeMenu = ADMIN_MENU;
 
   return (
     <aside style={{
@@ -48,7 +82,7 @@ export default function Sidebar({
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>VITALIS</h3>
-                <span style={{ fontSize: '0.68rem', color: '#00d4ff', fontWeight: 700 }}>HOSPITAL OS</span>
+                <span style={{ fontSize: '0.68rem', color: '#00d4ff', fontWeight: 700, textTransform: 'uppercase' }}>{role} PORTAL</span>
               </div>
             </div>
           )}
@@ -69,19 +103,19 @@ export default function Sidebar({
         {/* User Status Card */}
         {!isCollapsed && currentUser && (
           <div style={{ padding: '12px 16px', margin: '12px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Active User</div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Active Account</div>
             <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#fff', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {currentUser.name}
             </div>
             <div style={{ fontSize: '0.72rem', color: '#00d4ff', fontWeight: 800, textTransform: 'capitalize', marginTop: '2px' }}>
-              ● {currentUser.role}
+              ● {role.toUpperCase()}
             </div>
           </div>
         )}
 
         {/* Navigation Items */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px 8px' }}>
-          {allowedItems.map(item => {
+          {activeMenu.map(item => {
             const isActive = currentView === item.id;
             return (
               <button
