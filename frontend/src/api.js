@@ -93,6 +93,8 @@ export async function analyzeFaceDiagnostic(faceData) {
   return res.json();
 }
 
+export const analyzeFaceImage = analyzeFaceDiagnostic;
+
 export async function loginUser(username, password) {
   const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',

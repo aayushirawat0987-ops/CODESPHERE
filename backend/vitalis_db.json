@@ -1,0 +1,52 @@
+{
+  "patient_id_counter": 1,
+  "users": [
+    {
+      "id": "usr_doc_1",
+      "username": "doctor",
+      "password": "password123",
+      "name": "Dr. Sarah Jenkins, MD",
+      "role": "doctor",
+      "email": "s.jenkins@vitalis.org",
+      "phone": "+1 (555) 234-5678",
+      "department": "Cardiology / Emergency"
+    },
+    {
+      "id": "usr_nurse_1",
+      "username": "nurse",
+      "password": "password123",
+      "name": "Nurse Mary Rivera, RN",
+      "role": "nurse",
+      "email": "m.rivera@vitalis.org",
+      "phone": "+1 (555) 876-5432",
+      "department": "Emergency Triage"
+    },
+    {
+      "id": "usr_pat_1",
+      "username": "patient",
+      "password": "password123",
+      "name": "John Doe",
+      "role": "patient",
+      "email": "john.doe@example.com",
+      "phone": "+1 (555) 111-2233",
+      "department": "Outpatient"
+    },
+    {
+      "id": "usr_admin_1",
+      "username": "admin",
+      "password": "password123",
+      "name": "Admin Supervisor Alex Vance",
+      "role": "admin",
+      "email": "admin@vitalis.org",
+      "phone": "+1 (555) 999-0000",
+      "department": "Hospital Administration"
+    }
+  ],
+  "patients": [],
+  "triage_records": [],
+  "visit_records": [],
+  "consultation_notes": [],
+  "appointments": [],
+  "audit_logs": [],
+  "daily_stats": {}
+}
