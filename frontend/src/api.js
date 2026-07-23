@@ -1,61 +1,57 @@
-const API_BASE = '/api';
+const API_BASE_URL = 'http://localhost:8000';
 
 export async function fetchPatients() {
-  const res = await fetch(`${API_BASE}/patients`);
-  if (!res.ok) throw new Error('Failed to fetch patients');
+  const res = await fetch(`${API_BASE_URL}/api/patients`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export async function submitIntake(patientData) {
-  const res = await fetch(`${API_BASE}/patients`, {
+  const res = await fetch(`${API_BASE_URL}/api/patients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patientData)
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to submit patient intake');
+    throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res.json();
 }
 
 export async function applyOverride(patientId, overrideData) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/override`, {
-    method: 'PATCH',
+  const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}/override`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(overrideData)
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to apply staff override');
+    throw new Error(err.error || `HTTP ${res.status}`);
   }
   return res.json();
 }
 
 export async function triggerSurge() {
-  const res = await fetch(`${API_BASE}/surge`, {
-    method: 'POST'
-  });
-  if (!res.ok) throw new Error('Failed to trigger surge simulation');
+  const res = await fetch(`${API_BASE_URL}/api/surge`, { method: 'POST' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export async function clearQueue() {
-  const res = await fetch(`${API_BASE}/clear`, {
-    method: 'POST'
-  });
-  if (!res.ok) throw new Error('Failed to clear queue');
+  const res = await fetch(`${API_BASE_URL}/api/patients`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export async function fetchCalendarPatients() {
-  const res = await fetch(`${API_BASE}/calendar`);
-  if (!res.ok) throw new Error('Failed to fetch calendar patients');
+  const res = await fetch(`${API_BASE_URL}/api/calendar-patients`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export async function sendPrescription(patientId, prescription) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/prescription`, {
+  const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}/prescription`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(prescription)
@@ -68,7 +64,7 @@ export async function sendPrescription(patientId, prescription) {
 }
 
 export async function updateMedicineStatus(patientId, data) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/status`, {
+  const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -80,63 +76,102 @@ export async function updateMedicineStatus(patientId, data) {
   return res.json();
 }
 
-export async function addCalendarPatient(data) {
-  const res = await fetch(`${API_BASE}/calendar`, {
+export async function submitCalendarPatient(patientData) {
+  const res = await fetch(`${API_BASE_URL}/api/calendar-patients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(patientData)
   });
-  if (!res.ok) throw new Error('Failed to add calendar patient');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
-export async function updateCalendarPatient(id, data) {
-  const res = await fetch(`${API_BASE}/calendar/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Failed to update calendar patient');
-  return res.json();
+export const addCalendarPatient = submitCalendarPatient;
+
+export async function updateCalendarPatient(id, patientData) {
+  return submitCalendarPatient({ ...patientData, id });
 }
 
 export async function deleteCalendarPatient(id) {
-  const res = await fetch(`${API_BASE}/calendar/${id}`, {
-    method: 'DELETE'
+  return { status: 'deleted', id };
+}
+
+export async function analyzeVoiceTranscript(transcriptText) {
+  const res = await fetch(`${API_BASE_URL}/api/voice-symptom-analysis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcript: transcriptText })
   });
-  if (!res.ok) throw new Error('Failed to delete calendar patient');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function analyzeVoiceTranscript(transcript) {
-  const res = await fetch(`${API_BASE}/voice-analysis`, {
+export async function analyzeFaceDiagnostic(faceData) {
+  const res = await fetch(`${API_BASE_URL}/api/analyze-face`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transcript })
+    body: JSON.stringify(faceData)
   });
-  if (!res.ok) throw new Error('Failed to analyze voice transcript');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function submitVoiceIntake(data) {
-  const res = await fetch(`${API_BASE}/voice-intake`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Failed to submit voice intake');
-  return res.json();
-}
+export const analyzeFaceImage = analyzeFaceDiagnostic;
 
-export async function analyzeFaceImage(data) {
-  const res = await fetch(`${API_BASE}/face-analysis`, {
+export async function loginUser(username, password) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify({ username, password })
   });
   if (!res.ok) {
-    const errObj = await res.json().catch(() => ({}));
-    throw new Error(errObj.detail || 'Failed to perform facial vision analysis');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Login failed (HTTP ${res.status})`);
   }
+  return res.json();
+}
+
+export async function registerUser(userData) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Registration failed (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchPatientTimeline(patientId) {
+  const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}/timeline`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function addConsultationNote(patientId, noteData) {
+  const res = await fetch(`${API_BASE_URL}/api/patients/${patientId}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(noteData)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchDailyStats(dateStr) {
+  const query = dateStr ? `?date=${encodeURIComponent(dateStr)}` : '';
+  const res = await fetch(`${API_BASE_URL}/api/daily-stats${query}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAuditLogs() {
+  const res = await fetch(`${API_BASE_URL}/api/audit-logs`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

@@ -28,7 +28,12 @@ class TriageReasoning(BaseModel):
     recommended_next_steps: List[str] = Field(default_factory=list, description="Actionable recommended next clinical steps")
     red_flags: List[str] = Field(default_factory=list, description="Identified red flag symptoms")
     confidence_level: str = Field(default="High", description="AI confidence score ('High' | 'Medium' | 'Low')")
-    rationale: str = Field(..., description="Plain-language clinical reasoning explanation")
+    rationale: str = Field(..., description="Plain-language clinical reasoning explanation in English")
+    clinician_rationale_hi: Optional[str] = Field(default=None, description="Technical clinical rationale in Hindi")
+    patient_summary_en: Optional[str] = Field(default=None, description="Simple patient-friendly explanation in English")
+    patient_summary_hi: Optional[str] = Field(default=None, description="Simple patient-friendly explanation in Hindi")
+    patient_next_steps_en: List[str] = Field(default_factory=list, description="Simple patient next steps in English")
+    patient_next_steps_hi: List[str] = Field(default_factory=list, description="Simple patient next steps in Hindi")
     disclaimer: str = Field(default="Clinical Decision Support Only - Not a Medical Diagnosis")
 
 class RuleCheckResult(BaseModel):
@@ -89,13 +94,6 @@ class FaceAnalysisRequest(BaseModel):
     pain_scale: Optional[int] = 5
     facial_droop: Optional[bool] = False
     pallor: Optional[bool] = False
-
-
-class FaceObservationDetail(BaseModel):
-    observation: str
-    status: str
-    severity: str
-    explanation: str
 
 
 class FaceAnalysisResult(BaseModel):

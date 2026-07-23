@@ -1,91 +1,74 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-export default function Sidebar({ currentView, onViewChange, onCollapse }) {
-  const [collapsed, setCollapsed] = useState(false);
+export default function Sidebar({
+  currentView,
+  onViewChange,
+  currentUser,
+  onLogout,
+  isCollapsed,
+  onToggleCollapse
+}) {
+  const role = currentUser ? currentUser.role : 'guest';
 
-  const toggleCollapse = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    if (onCollapse) onCollapse(next);
-  };
-
-  const navItems = [
-    {
-      key: 'triage',
-      label: 'Dashboard',
+  const menuItems = [
+    { id: 'triage', label: 'Dashboard & Queue', roles: ['doctor', 'nurse', 'admin', 'patient'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/>
-          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
         </svg>
       ),
     },
-    {
-      key: 'doctor',
-      label: 'Doctor',
+    { id: 'doctor_dashboard', label: 'Doctor Workspace', roles: ['doctor', 'admin'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
-          <line x1="12" y1="11" x2="12" y2="17"/>
-          <line x1="9" y1="14" x2="15" y2="14"/>
+          <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
         </svg>
       ),
     },
-    {
-      key: 'pharmacy',
-      label: 'Pharmacy',
+    { id: 'patient_dashboard', label: 'Patient Portal', roles: ['patient', 'doctor', 'nurse', 'admin'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5"/>
-          <rect x="9" y="1" width="6" height="3" rx="1"/>
-          <line x1="12" y1="11" x2="12" y2="17"/>
-          <line x1="9" y1="14" x2="15" y2="14"/>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      ),
+    },
+    { id: 'admin_dashboard', label: 'Admin Settings', roles: ['admin'],
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       ),
     },
     { type: 'divider' },
-    {
-      key: 'analytics',
-      label: 'Analytics',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-      ),
-    },
-    {
-      key: 'calendar',
-      label: 'Calendar',
+    { id: 'calendar', label: 'Calendar', roles: ['doctor', 'nurse', 'admin', 'patient'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
+          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      ),
+    },
+    { id: 'analytics', label: 'Analytics', roles: ['doctor', 'nurse', 'admin'],
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
       ),
     },
     { type: 'divider' },
-    {
-      key: 'voice',
-      label: 'Voice AI',
+    { id: 'voice', label: 'Voice AI', roles: ['doctor', 'nurse', 'admin', 'patient'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
           <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="23"/>
-          <line x1="8" y1="23" x2="16" y2="23"/>
+          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
         </svg>
       ),
     },
-    {
-      key: 'face',
-      label: 'Face Scanner',
+    { id: 'face', label: 'Face Scanner', roles: ['doctor', 'nurse', 'admin', 'patient'],
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -93,22 +76,13 @@ export default function Sidebar({ currentView, onViewChange, onCollapse }) {
         </svg>
       ),
     },
-    { type: 'divider' },
-    {
-      key: 'contact',
-      label: 'Contact',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-          <polyline points="22,6 12,13 2,6"/>
-        </svg>
-      ),
-    },
   ];
 
+  const allowedItems = menuItems.filter(item => item.type === 'divider' || item.roles.includes(role));
+
   return (
-    <aside className={`sidebar-nav-panel ${collapsed ? 'collapsed' : ''}`}>
-      {/* Sidebar Top — Logo & Toggle */}
+    <aside className={`sidebar-nav-panel ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Brand & Toggle */}
       <div className="sidebar-brand">
         <div className="sidebar-brand-inner">
           <div className="sidebar-logo-icon">
@@ -116,51 +90,60 @@ export default function Sidebar({ currentView, onViewChange, onCollapse }) {
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
           </div>
-          {!collapsed && <span className="sidebar-brand-text">Vitalis</span>}
+          {!isCollapsed && <span className="sidebar-brand-text">Vitalis</span>}
         </div>
         <button
           className="sidebar-toggle-btn"
-          onClick={toggleCollapse}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={onToggleCollapse}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }}>
+            style={{ transform: isCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s ease' }}>
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
       </div>
 
-      {/* Navigation Items */}
+      {/* User Card */}
+      {!isCollapsed && currentUser && (
+        <div className="sidebar-user-card">
+          <div className="sidebar-user-role-label">Active User</div>
+          <div className="sidebar-user-name">{currentUser.name}</div>
+          <div className="sidebar-user-role">● {currentUser.role}</div>
+        </div>
+      )}
+
+      {/* Navigation */}
       <nav className="sidebar-nav-list">
-        {navItems.map((item, idx) => {
+        {allowedItems.map((item, idx) => {
           if (item.type === 'divider') {
             return <div key={`div-${idx}`} className="sidebar-divider" />;
           }
-
-          const isActive = currentView === item.key;
-
+          const isActive = currentView === item.id;
           return (
             <button
-              key={item.key}
-              id={`sidebar-${item.key}`}
+              key={item.id}
+              id={`sidebar-${item.id}`}
               className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => onViewChange(item.key)}
-              title={collapsed ? item.label : ''}
+              onClick={() => onViewChange(item.id)}
+              title={isCollapsed ? item.label : ''}
             >
               <span className="sidebar-nav-icon">{item.icon}</span>
-              {!collapsed && <span className="sidebar-nav-label">{item.label}</span>}
-              {isActive && !collapsed && <span className="sidebar-active-indicator" />}
+              {!isCollapsed && <span className="sidebar-nav-label">{item.label}</span>}
+              {isActive && !isCollapsed && <span className="sidebar-active-indicator" />}
             </button>
           );
         })}
       </nav>
 
-      {/* Bottom Status */}
+      {/* Bottom Logout */}
       <div className="sidebar-bottom">
-        <div className={`sidebar-status-dot ${collapsed ? 'collapsed' : ''}`}>
-          <span className="status-pulse-dot" />
-          {!collapsed && <span className="sidebar-status-text">System Online</span>}
-        </div>
+        <button className="sidebar-logout-btn" onClick={onLogout} title="Log Out">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          {!isCollapsed && <span>Log Out</span>}
+        </button>
       </div>
     </aside>
   );

@@ -1,61 +1,73 @@
 import React from 'react';
 
 export default function Header({
+  currentUser,
+  onOpenAuth,
+  audienceMode = 'clinician',
+  onAudienceModeChange,
   onTriggerSurge,
   onClearQueue,
   isSurging,
   isRefreshing,
   currentView,
   onViewChange,
-  onGoHome,
+  isSidebarCollapsed
 }) {
+  const roleEmoji = currentUser ? (
+    currentUser.role === 'doctor' ? '👨‍⚕️' :
+    currentUser.role === 'nurse' ? '🩺' :
+    currentUser.role === 'patient' ? '👤' : '⚙️'
+  ) : '👤';
+
   return (
     <header className="app-header">
       <div className="header-left">
-        <button
-          id="header-home-btn"
-          onClick={onGoHome}
-          title="Back to home"
-          className="header-logo-btn"
-        >
-          V
-        </button>
-
         <div className="title-block">
           <div className="brand-row">
             <h1 className="brand-title">VITALIS <span className="brand-accent">/ TriageAI</span></h1>
-            <span className="clinical-tag">Clinical Decision-Support</span>
+            <span className="clinical-tag" style={{
+              background: audienceMode === 'patient' ? 'rgba(5,150,105,0.12)' : undefined,
+              color: audienceMode === 'patient' ? '#059669' : undefined
+            }}>
+              {audienceMode === 'patient' ? '👤 Patient View' : '🏥 Command Center'}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="header-actions">
-        {/* Live status pill — always visible */}
-        <div className="live-status-pill">
-          <span className={`pulse-dot ${isRefreshing ? 'refreshing' : ''}`}></span>
-          <span className="live-text">Live Queue</span>
+        {/* Audience Mode Switcher */}
+        <div className="header-mode-switcher">
+          <button
+            className={`mode-btn ${audienceMode === 'clinician' ? 'active' : ''}`}
+            onClick={() => onAudienceModeChange && onAudienceModeChange('clinician')}
+          >
+            👨‍⚕️ Clinical
+          </button>
+          <button
+            className={`mode-btn ${audienceMode === 'patient' ? 'active patient' : ''}`}
+            onClick={() => onAudienceModeChange && onAudienceModeChange('patient')}
+          >
+            👤 Patient
+          </button>
         </div>
 
-        {/* Surge & Clear only on triage view */}
-        {currentView === 'triage' && (
-          <>
-            <button
-              className="btn btn-surge"
-              onClick={onTriggerSurge}
-              disabled={isSurging}
-              title="Simulate rapid arrival of 9 realistic ER patients"
-            >
-              {isSurging ? 'Simulating...' : '⚡ Demo Surge'}
-            </button>
+        {/* Live status */}
+        <div className="live-status-pill">
+          <span className={`pulse-dot ${isRefreshing ? 'refreshing' : ''}`}></span>
+          <span className="live-text">Live</span>
+        </div>
 
-            <button
-              className="btn btn-secondary-ghost"
-              onClick={onClearQueue}
-              title="Reset triage queue for a fresh demo run"
-            >
-              Reset Queue
-            </button>
-          </>
+        {/* Surge — triage view only */}
+        {currentView === 'triage' && (
+          <button
+            className="btn btn-surge"
+            onClick={onTriggerSurge}
+            disabled={isSurging}
+            style={{ fontSize: '0.78rem', padding: '6px 14px' }}
+          >
+            {isSurging ? '⏳ Simulating...' : '⚡ Demo Surge'}
+          </button>
         )}
 
         {/* Notifications bell */}
@@ -67,9 +79,11 @@ export default function Header({
           <span className="header-notif-badge">3</span>
         </button>
 
-        {/* Profile avatar */}
-        <button className="header-avatar-btn" title="Profile">
-          <span className="header-avatar-initials">DR</span>
+        {/* User badge */}
+        <button className="header-avatar-btn" onClick={onOpenAuth} title={currentUser ? currentUser.name : 'Log In'}>
+          <span className="header-avatar-initials">
+            {currentUser ? currentUser.name.charAt(0).toUpperCase() : roleEmoji}
+          </span>
         </button>
       </div>
     </header>

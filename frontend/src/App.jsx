@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import LoginPage from './components/LoginPage';
+import ProtectedComponent from './components/ProtectedComponent';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
 import DoctorDashboard from './components/DoctorDashboard';
 import PharmacyDashboard from './components/PharmacyDashboard';
-import Sidebar from './components/Sidebar';
 import OverrideModal from './components/OverrideModal';
 import PatientProfileModal from './components/PatientProfileModal';
 import MedicalReportModal from './components/MedicalReportModal';
@@ -13,16 +15,22 @@ import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
 import FaceAnalyzer from './components/FaceAnalyzer';
 import ContactPage from './components/ContactPage';
-import LandingPage from './components/LandingPage';
+import DoctorDashboardView from './components/DoctorDashboardView';
+import PatientDashboardView from './components/PatientDashboardView';
+import AdminDashboardView from './components/AdminDashboardView';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'dashboard'
-  const [appState, setAppState] = useState('landing');
+  // App authentication state
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentView, setCurrentView] = useState('triage');
-  const [showContactOnLanding, setShowContactOnLanding] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Multi-Language & Audience View Mode States
+  const [patientLang, setPatientLang] = useState('en');
+  const [staffLang, setStaffLang] = useState('en');
+  const [audienceMode, setAudienceMode] = useState('clinician');
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -43,7 +51,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Play Web Audio API chime sound on surge / alerts
   const playAlertChime = () => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -61,9 +68,7 @@ export default function App() {
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       }
-    } catch (e) {
-      // Audio not permitted or unaccessible
-    }
+    } catch (e) {}
   };
 
   const loadPatients = useCallback(async () => {
@@ -89,22 +94,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (appState === 'landing') return;
+    if (!currentUser) return;
     loadPatients();
     loadCalendarPatients();
     const interval = setInterval(loadPatients, 3000);
     return () => clearInterval(interval);
-  }, [loadPatients, loadCalendarPatients, appState]);
+  }, [loadPatients, loadCalendarPatients, currentUser]);
 
   const handleIntakeSubmit = async (patientData, resetForm) => {
     setIsLoadingIntake(true);
     try {
       const newRecord = await submitIntake(patientData);
-      showToast(`✅ Intake processed for ${newRecord.name} (Assigned Score: ${newRecord.effective_urgency_score}/10)`);
+      showToast(`✅ Intake processed for ${newRecord.name} (Assigned ID: ${newRecord.patient_id})`);
       resetForm();
       loadPatients();
     } catch (err) {
-      alert(`Error submitting intake: ${err.message}`);
+      alert(`Intake Submission Failed: ${err.message}`);
     } finally {
       setIsLoadingIntake(false);
     }
@@ -113,30 +118,27 @@ export default function App() {
   const handleTriggerSurge = async () => {
     setIsSurging(true);
     playAlertChime();
+    showToast('🚨 Emergency Surge Simulation Started!');
     try {
       await triggerSurge();
-      showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
-      let count = 0;
-      const surgeInterval = setInterval(() => {
+      setTimeout(() => {
         loadPatients();
-        count++;
-        if (count > 5) clearInterval(surgeInterval);
-      }, 800);
+        setIsSurging(false);
+      }, 3500);
     } catch (err) {
-      alert(`Surge simulation error: ${err.message}`);
-    } finally {
-      setTimeout(() => setIsSurging(false), 3000);
+      alert(`Surge simulation failed: ${err.message}`);
+      setIsSurging(false);
     }
   };
 
   const handleClearQueue = async () => {
-    if (window.confirm('Clear all patient records from the queue?')) {
+    if (window.confirm('Are you sure you want to clear the entire triage queue?')) {
       try {
         await clearQueue();
-        showToast('🗑️ Triage queue cleared.');
+        showToast('🗑️ Triage Queue Cleared');
         loadPatients();
       } catch (err) {
-        alert(`Error clearing queue: ${err.message}`);
+        alert(`Clear queue failed: ${err.message}`);
       }
     }
   };
@@ -153,161 +155,173 @@ export default function App() {
     }
   };
 
-  const handleEnterDashboard = () => {
-    setAppState('dashboard');
-    setCurrentView('triage');
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    showToast(`🔑 Welcome, ${user.name} (${user.role.toUpperCase()})`);
+    
+    // Role-based initial view routing
+    if (user.role === 'doctor') setCurrentView('doctor_dashboard');
+    else if (user.role === 'patient') { setCurrentView('patient_dashboard'); setAudienceMode('patient'); }
+    else if (user.role === 'admin') setCurrentView('admin_dashboard');
+    else setCurrentView('triage');
   };
 
-  const handleViewChange = (view) => {
-    setCurrentView(view);
+  const handleLogout = () => {
+    setCurrentUser(null);
+    showToast('🚪 Logged out successfully');
   };
 
-  // Show landing page if not entered yet
-  if (appState === 'landing') {
-    return (
-      <>
-        <LandingPage 
-          onEnter={handleEnterDashboard}
-          onContact={() => setShowContactOnLanding(true)}
-        />
-        {showContactOnLanding && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
-          }}>
-            <div style={{
-              backgroundColor: '#fff', borderRadius: '12px', maxWidth: '700px',
-              width: '100%', maxHeight: '90vh', overflow: 'auto', position: 'relative'
-            }}>
-              <button
-                onClick={() => setShowContactOnLanding(false)}
-                style={{
-                  position: 'sticky', top: '10px', right: '10px', float: 'right',
-                  background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer',
-                  zIndex: 1001, color: '#666'
-                }}
-              >
-                ✕
-              </button>
-              <div style={{ padding: '30px' }}>
-                <ContactPage
-                  onSubmitSuccess={(message) => {
-                    showToast(message);
-                    setTimeout(() => setShowContactOnLanding(false), 2000);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </>
-    );
+  // If unauthenticated, show login page
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
     <div className="app-shell">
       {/* Fixed Left Sidebar — Primary Navigation */}
-      <Sidebar currentView={currentView} onViewChange={handleViewChange} onCollapse={setSidebarCollapsed} />
+      <Sidebar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
 
       {/* Right side: Header + Content */}
-      <div className={`app-main-wrapper ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className={`app-main-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Emergency Surge Alert Banner */}
         {isSurging && (
           <div className="surge-alert-banner">
-            🚨 EMERGENCY SURGE IN PROGRESS — 9 HIGH-ACUITY PATIENTS ARRIVING IN QUEUE
+            🚨 EMERGENCY SURGE IN PROGRESS — HIGH-ACUITY PATIENTS ARRIVING
           </div>
         )}
 
         {/* Top Header */}
         <Header
+          currentUser={currentUser}
+          onOpenAuth={handleLogout}
+          audienceMode={audienceMode}
+          onAudienceModeChange={setAudienceMode}
           onTriggerSurge={handleTriggerSurge}
           onClearQueue={handleClearQueue}
           isSurging={isSurging}
           isRefreshing={isRefreshing}
           currentView={currentView}
-          onViewChange={handleViewChange}
-          onGoHome={() => setAppState('landing')}
+          onViewChange={setCurrentView}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
 
-        {/* Main Workspace Views */}
+        {/* Main Workspace Area */}
         <main className="main-content">
+          {/* Triage Dashboard & Queue */}
           {currentView === 'triage' && (
-            <div className="triage-layout">
-              <aside className="column-intake">
-                <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
-              </aside>
-
-              <section className="column-dashboard">
-                <NurseDashboard
-                  patients={patients}
-                  onOpenOverride={(p) => setOverridePatient(p)}
-                  onOpenProfile={(p) => setProfilePatient(p)}
-                  onOpenReport={(p) => setReportPatient(p)}
-                  lastUpdated={lastUpdated}
-                />
-              </section>
-            </div>
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['nurse', 'doctor', 'admin', 'patient']} onRedirectLogin={handleLogout}>
+              <div className="triage-layout">
+                <aside className="column-intake">
+                  <PatientForm
+                    onSubmit={handleIntakeSubmit}
+                    isLoading={isLoadingIntake}
+                    lang={audienceMode === 'patient' ? patientLang : staffLang}
+                  />
+                </aside>
+                <section className="column-dashboard">
+                  <NurseDashboard
+                    patients={patients}
+                    onOpenOverride={(p) => setOverridePatient(p)}
+                    onOpenProfile={(p) => setProfilePatient(p)}
+                    onOpenReport={(p) => setReportPatient(p)}
+                    lastUpdated={lastUpdated}
+                    patientLang={patientLang}
+                    staffLang={staffLang}
+                    audienceMode={audienceMode}
+                  />
+                </section>
+              </div>
+            </ProtectedComponent>
           )}
 
+          {/* Doctor Workspace */}
+          {currentView === 'doctor_dashboard' && (
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'admin']} onRedirectLogin={handleLogout}>
+              <DoctorDashboardView
+                patients={patients}
+                currentUser={currentUser}
+                onOpenOverride={(p) => setOverridePatient(p)}
+                onOpenReport={(p) => setReportPatient(p)}
+              />
+            </ProtectedComponent>
+          )}
+
+          {/* Patient Portal */}
+          {currentView === 'patient_dashboard' && (
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
+              <PatientDashboardView
+                currentUser={currentUser}
+                patients={patients}
+                onOpenReport={(p) => setReportPatient(p)}
+                lang={patientLang}
+              />
+            </ProtectedComponent>
+          )}
+
+          {/* Admin Settings */}
+          {currentView === 'admin_dashboard' && (
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['admin']} onRedirectLogin={handleLogout}>
+              <AdminDashboardView
+                patients={patients}
+                currentUser={currentUser}
+              />
+            </ProtectedComponent>
+          )}
+
+          {/* Analytics */}
           {currentView === 'analytics' && (
-            <AnalyticsView patients={patients} />
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
+              <AnalyticsView patients={patients} />
+            </ProtectedComponent>
           )}
 
-          {currentView === 'doctor' && (
-            <DoctorDashboard
-              patients={patients}
-              onRefresh={loadPatients}
-              lastUpdated={lastUpdated}
-              showToast={showToast}
-            />
-          )}
-
-          {currentView === 'pharmacy' && (
-            <PharmacyDashboard
-              patients={patients}
-              onRefresh={loadPatients}
-              lastUpdated={lastUpdated}
-              showToast={showToast}
-            />
-          )}
-
+          {/* Calendar */}
           {currentView === 'calendar' && (
-            <CalendarView
-              patients={calendarPatients}
-              onPatientsUpdated={loadCalendarPatients}
-            />
+            <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin', 'patient']} onRedirectLogin={handleLogout}>
+              <CalendarView
+                patients={calendarPatients}
+                onPatientsUpdated={loadCalendarPatients}
+              />
+            </ProtectedComponent>
           )}
 
+          {/* Voice AI */}
           {currentView === 'voice' && (
             <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
               <VoiceAnalyzer />
             </div>
           )}
 
+          {/* Face Scanner */}
           {currentView === 'face' && (
             <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
               <FaceAnalyzer />
             </div>
           )}
 
+          {/* Contact */}
           {currentView === 'contact' && (
-            <ContactPage
-              onSubmitSuccess={(message) => showToast(message)}
-            />
+            <ContactPage onSubmitSuccess={(message) => showToast(message)} />
           )}
         </main>
 
-        {/* Clinical Disclaimer Footer */}
+        {/* Footer */}
         <footer className="app-footer">
           <p>
-            <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
+            <strong>⚠️ Vitalis TriageAI:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
             Emergency clinicians maintain complete authority and final decision control at all times.
           </p>
         </footer>
       </div>
 
-      {/* Staff Override Modal Dialog */}
+      {/* Modals */}
       {overridePatient && (
         <OverrideModal
           patient={overridePatient}
@@ -316,25 +330,29 @@ export default function App() {
         />
       )}
 
-      {/* Detailed Patient Profile Modal */}
       {profilePatient && (
         <PatientProfileModal
           patient={profilePatient}
           onClose={() => setProfilePatient(null)}
           onOpenOverride={(p) => { setProfilePatient(null); setOverridePatient(p); }}
           onOpenReport={(p) => { setProfilePatient(null); setReportPatient(p); }}
+          patientLang={patientLang}
+          staffLang={staffLang}
+          audienceMode={audienceMode}
         />
       )}
 
-      {/* Printable Medical Triage Report Modal */}
       {reportPatient && (
         <MedicalReportModal
           patient={reportPatient}
           onClose={() => setReportPatient(null)}
+          patientLang={patientLang}
+          staffLang={staffLang}
+          audienceMode={audienceMode}
         />
       )}
 
-      {/* Notification Toast */}
+      {/* Toast */}
       {toastMessage && (
         <div className="toast-banner">
           <span>{toastMessage}</span>
