@@ -91,3 +91,23 @@ export async function analyzeVoiceTranscript(transcript) {
   if (!res.ok) throw new Error('Failed to analyze voice transcript');
   return res.json();
 }
+
+export async function submitVoiceIntake(data) {
+  const res = await fetch(`${API_BASE}/voice-intake`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to submit voice intake');
+  return res.json();
+}
+
+export async function analyzeFaceImage(data) {
+  const res = await fetch(`${API_BASE}/face-analysis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to perform facial vision analysis');
+  return res.json();
+}

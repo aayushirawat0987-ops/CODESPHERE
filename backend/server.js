@@ -2,7 +2,7 @@
  * Vitalis / TriageAI - Zero-Dependency Node.js Backend Server
  * -------------------------------------------------------------
  * Clinical Decision-Support Tool backend written using pure Node.js built-in HTTP module.
- * Requires ZERO npm packages or npm install step.
+ * Features: Triage Queue, AI Decision Support, Safety Rule Engine, Voice Analysis, Face Vision API.
  */
 
 const http = require("http");
@@ -28,6 +28,7 @@ loadEnv();
 const { db, calendarDb } = require("./storage");
 const { evaluateClinicalRules } = require("./ruleEngine");
 const { evaluatePatientAI } = require("./aiEngine");
+const { evaluateFaceImage } = require("./faceEngine");
 const { SURGE_PATIENTS } = require("./surgeData");
 const { VOICE_SYMPTOM_MAP } = require("./voiceSymptomMap");
 
@@ -104,7 +105,7 @@ const server = http.createServer(async (req, res) => {
   try {
     // GET /api/health
     if (pathname === "/api/health" && req.method === "GET") {
-      return json({ status: "ok", service: "Vitalis TriageAI Core (Pure Node.js)" });
+      return json({ status: "ok", service: "Vitalis TriageAI Core (Node.js with Voice & Face APIs)" });
     }
 
     // GET /api/patients
@@ -169,20 +170,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Calendar endpoints
-    // GET /api/calendar
     if (pathname === "/api/calendar" && req.method === "GET") {
       const list = await calendarDb.getAllPatients();
       return json(list);
     }
 
-    // POST /api/calendar
     if (pathname === "/api/calendar" && req.method === "POST") {
       const body = await readJsonBody(req);
       const record = await calendarDb.addPatient(body);
       return json(record, 201);
     }
 
-    // PUT /api/calendar/:id
     if (pathname.startsWith("/api/calendar/") && req.method === "PUT") {
       const id = pathname.replace("/api/calendar/", "");
       const body = await readJsonBody(req);
@@ -191,7 +189,6 @@ const server = http.createServer(async (req, res) => {
       return json(updated);
     }
 
-    // DELETE /api/calendar/:id
     if (pathname.startsWith("/api/calendar/") && req.method === "DELETE") {
       const id = pathname.replace("/api/calendar/", "");
       const success = await calendarDb.deletePatient(id);
@@ -238,6 +235,39 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // POST /api/voice-intake (Auto-creates patient record from voice transcript)
+    if (pathname === "/api/voice-intake" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      const transcript = body.transcript || "Patient voice intake";
+      const name = body.name || "Voice Intake Patient";
+
+      const intake = {
+        name,
+        complaint: transcript,
+        pain_scale: body.pain_scale || 5,
+        vitals: body.vitals || {}
+      };
+
+      const ruleRes = evaluateClinicalRules({
+        vitals: intake.vitals,
+        pain_scale: intake.pain_scale,
+        complaint: intake.complaint,
+        medical_history: "",
+        age: null
+      });
+
+      const aiRes = await evaluatePatientAI(intake);
+      const record = db.addPatient(intake, aiRes, ruleRes);
+      return json(record, 201);
+    }
+
+    // POST /api/face-analysis (Facial distress and FAST vision analysis)
+    if (pathname === "/api/face-analysis" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      const result = await evaluateFaceImage(body);
+      return json(result);
+    }
+
     // 404 Fallback
     return error("Endpoint not found", 404);
   } catch (err) {
@@ -247,5 +277,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Starting Vitalis / TriageAI Pure Node.js Backend Server on http://${HOST}:${PORT}`);
+  console.log(`Starting Vitalis / TriageAI Server on http://${HOST}:${PORT} (Voice & Face APIs active)`);
 });

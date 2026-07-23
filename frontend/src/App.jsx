@@ -5,13 +5,14 @@ import NurseDashboard from './components/NurseDashboard';
 import OverrideModal from './components/OverrideModal';
 import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
+import FaceAnalyzer from './components/FaceAnalyzer';
 import ContactPage from './components/ContactPage';
 import LandingPage from './components/LandingPage';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'calendar' | 'voice'
+  // 'landing' | 'triage' | 'calendar' | 'voice' | 'face' | 'contact'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
@@ -232,6 +233,12 @@ export default function App() {
         {currentView === 'voice' && (
           <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <VoiceAnalyzer />
+          </div>
+        )}
+
+        {currentView === 'face' && (
+          <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
+            <FaceAnalyzer />
           </div>
         )}
 

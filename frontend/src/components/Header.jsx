@@ -56,7 +56,7 @@ export default function Header({
         </div>
       </div>
 
-      <div className="header-center" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: 'auto', marginRight: '20px' }}>
+      <div className="header-center" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto', marginRight: '20px', flexWrap: 'wrap' }}>
         <button
           className={`btn ${currentView === 'triage' ? 'btn-primary' : 'btn-secondary-ghost'}`}
           onClick={() => onViewChange('triage')}
@@ -68,6 +68,18 @@ export default function Header({
           onClick={() => onViewChange('calendar')}
         >
           Patient Calendar
+        </button>
+        <button
+          className={`btn ${currentView === 'voice' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('voice')}
+        >
+          🎙️ Voice AI
+        </button>
+        <button
+          className={`btn ${currentView === 'face' ? 'btn-primary' : 'btn-secondary-ghost'}`}
+          onClick={() => onViewChange('face')}
+        >
+          📷 Face Scanner
         </button>
         <button
           className={`btn ${currentView === 'contact' ? 'btn-primary' : 'btn-secondary-ghost'}`}
