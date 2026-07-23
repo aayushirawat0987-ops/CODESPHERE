@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { fetchAuditLogs, fetchDailyStats } from '../api';
+import { fetchAuditLogs, fetchDailyStats, registerUser } from '../api';
 
 export default function AdminDashboardView({ patients, currentUser }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [dailyStats, setDailyStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('dailyRecords'); // 'dailyRecords' | 'auditLogs' | 'hospitalStaff'
+
+  // New Staff Registration State
+  const [newStaffRole, setNewStaffRole] = useState('doctor');
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffUsername, setNewStaffUsername] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('password123');
+  const [newStaffDept, setNewStaffDept] = useState('Cardiology / ER');
+  const [regMsg, setRegMsg] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
 
   useEffect(() => {
     fetchDailyStats(selectedDate)
@@ -16,6 +25,32 @@ export default function AdminDashboardView({ patients, currentUser }) {
       .then(data => setAuditLogs(data))
       .catch(err => console.error(err));
   }, [selectedDate]);
+
+  const handleAdminCreateStaff = async (e) => {
+    e.preventDefault();
+    if (!newStaffName || !newStaffUsername) return;
+
+    setRegLoading(true);
+    setRegMsg('');
+    try {
+      const res = await registerUser({
+        username: newStaffUsername.trim(),
+        password: newStaffPassword,
+        name: newStaffName.trim(),
+        role: newStaffRole,
+        department: newStaffDept.trim()
+      });
+      setRegMsg(`✅ Account created for ${res.user.name} (${newStaffRole.toUpperCase()})!`);
+      setNewStaffName('');
+      setNewStaffUsername('');
+      const updatedLogs = await fetchAuditLogs();
+      setAuditLogs(updatedLogs);
+    } catch (err) {
+      setRegMsg(`❌ ${err.message}`);
+    } finally {
+      setRegLoading(false);
+    }
+  };
 
   const totalRegistered = patients.length + 24;
   const criticalCount = patients.filter(p => p.effective_urgency_score >= 8).length;
@@ -28,7 +63,7 @@ export default function AdminDashboardView({ patients, currentUser }) {
       <div style={{ background: 'linear-gradient(135deg, #0f172a, #334155)', borderRadius: '16px', padding: '20px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#fff' }}>
-            ⚙️ Hospital Administration & Audit Command Center
+            ⚙️ Hospital Administration & Staff Control Center
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
             Administrator: <strong style={{ color: '#00d4ff' }}>{currentUser ? currentUser.name : 'Admin Alex Vance'}</strong> | System Mode: <strong style={{ color: '#6ee7b7' }}>Persistent SQLite Database</strong>
@@ -68,7 +103,7 @@ export default function AdminDashboardView({ patients, currentUser }) {
           className={`btn ${activeTab === 'hospitalStaff' ? 'btn-primary' : 'btn-secondary-ghost'}`}
           style={{ fontSize: '0.82rem', padding: '8px 16px' }}
         >
-          🏥 Staff & Bed Management
+          🏥 Staff Registration & Bed Control
         </button>
       </div>
 
@@ -148,25 +183,102 @@ export default function AdminDashboardView({ patients, currentUser }) {
         </div>
       )}
 
-      {/* TAB 3: STAFF MANAGEMENT */}
+      {/* TAB 3: STAFF REGISTRATION & MANAGEMENT */}
       {activeTab === 'hospitalStaff' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '14px', padding: '16px' }}>
-            <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 800 }}>👨‍⚕️ On-Duty Doctors</h4>
-            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#334155', lineHeight: 1.6 }}>
-              <li><strong>Dr. Sarah Jenkins, MD</strong> (Cardiology / ER)</li>
-              <li><strong>Dr. Robert Chen, MD</strong> (Neurology / Trauma)</li>
-              <li><strong>Dr. Amanda Foster, MD</strong> (Pediatric ER)</li>
-            </ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Admin Register Staff Form */}
+          <div style={{ background: '#f0f9ff', border: '1.5px solid #7dd3fc', borderRadius: '16px', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 900, color: '#0369a1' }}>
+              ➕ Register New Doctor, Nurse, or Admin Staff Account
+            </h3>
+
+            {regMsg && (
+              <div style={{ padding: '10px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 700, marginBottom: '12px', background: regMsg.startsWith('✅') ? '#f0fdf4' : '#fef2f2', color: regMsg.startsWith('✅') ? '#166534' : '#b91c1c', border: regMsg.startsWith('✅') ? '1px solid #86efac' : '1px solid #fca5a5' }}>
+                {regMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminCreateStaff} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Staff Role</label>
+                <select className="input-field" value={newStaffRole} onChange={e => setNewStaffRole(e.target.value)}>
+                  <option value="doctor">👨‍⚕️ Doctor</option>
+                  <option value="nurse">🩺 Nurse</option>
+                  <option value="admin">⚙️ Administrator</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Full Name</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Dr. Robert Chen, MD"
+                  value={newStaffName}
+                  onChange={e => setNewStaffName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Username</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. dr_chen"
+                  value={newStaffUsername}
+                  onChange={e => setNewStaffUsername(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Default Password</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={newStaffPassword}
+                  onChange={e => setNewStaffPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Department</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Neurology / Trauma"
+                  value={newStaffDept}
+                  onChange={e => setNewStaffDept(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary" disabled={regLoading} style={{ height: '40px' }}>
+                {regLoading ? 'Creating...' : '➕ Register Staff'}
+              </button>
+            </form>
           </div>
 
-          <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '14px', padding: '16px' }}>
-            <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 800 }}>🩺 On-Duty Triage Nurses</h4>
-            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#334155', lineHeight: 1.6 }}>
-              <li><strong>Nurse Mary Rivera, RN</strong> (Lead Triage)</li>
-              <li><strong>Nurse David Miller, RN</strong> (Acute Care)</li>
-              <li><strong>Nurse Jessica Taylor, RN</strong> (Pediatrics)</li>
-            </ul>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '14px', padding: '16px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 800 }}>👨‍⚕️ On-Duty Doctors</h4>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#334155', lineHeight: 1.6 }}>
+                <li><strong>Dr. Sarah Jenkins, MD</strong> (Cardiology / ER)</li>
+                <li><strong>Dr. Robert Chen, MD</strong> (Neurology / Trauma)</li>
+                <li><strong>Dr. Amanda Foster, MD</strong> (Pediatric ER)</li>
+              </ul>
+            </div>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '14px', padding: '16px' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '0.9rem', color: '#0f172a', fontWeight: 800 }}>🩺 On-Duty Triage Nurses</h4>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#334155', lineHeight: 1.6 }}>
+                <li><strong>Nurse Mary Rivera, RN</strong> (Lead Triage)</li>
+                <li><strong>Nurse David Miller, RN</strong> (Acute Care)</li>
+                <li><strong>Nurse Jessica Taylor, RN</strong> (Pediatrics)</li>
+              </ul>
+            </div>
           </div>
         </div>
       )}

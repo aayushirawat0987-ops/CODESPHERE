@@ -10,9 +10,12 @@ export default function LoginPage({ onLoginSuccess }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('Cardiology / ER');
+  const [staffId, setStaffId] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const PRESETS = [
     { role: 'doctor', username: 'doctor', name: 'Dr. Sarah Jenkins', title: '👨‍⚕️ Doctor', dept: 'Cardiology / ER' },
@@ -24,6 +27,7 @@ export default function LoginPage({ onLoginSuccess }) {
   const handleQuickLogin = async (preset) => {
     setLoading(true);
     setError('');
+    setSuccessMsg('');
     try {
       const res = await loginUser(preset.username, 'password123');
       onLoginSuccess(res.user);
@@ -38,6 +42,7 @@ export default function LoginPage({ onLoginSuccess }) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMsg('');
     try {
       if (isRegister) {
         const res = await registerUser({
@@ -46,9 +51,14 @@ export default function LoginPage({ onLoginSuccess }) {
           name: name.trim(),
           email: email.trim(),
           phone: phone.trim(),
+          department: department.trim() || 'General Medicine',
+          staff_id: staffId.trim() || undefined,
           role: selectedRole
         });
-        onLoginSuccess(res.user);
+        setSuccessMsg(`✅ Account created for ${res.user.name} (${selectedRole.toUpperCase()})! Logging in...`);
+        setTimeout(() => {
+          onLoginSuccess(res.user);
+        }, 1200);
       } else {
         const res = await loginUser(username.trim(), password);
         onLoginSuccess(res.user);
@@ -90,10 +100,10 @@ export default function LoginPage({ onLoginSuccess }) {
             </div>
 
             <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0 0 12px', lineHeight: 1.3 }}>
-              Enterprise AI Triage & Clinical Decision Support
+              Full Multi-Role User Registration & Authentication
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, margin: 0 }}>
-              Secure role-based authentication with automatic Patient ID generation (<strong style={{ color: '#fff' }}>VIT-2026-XXXXXX</strong>), scannable QR codes, and persistent SQLite storage.
+              Register new accounts for <strong style={{ color: '#fff' }}>Doctors, Nurses, Patients, and Administrators</strong> with automatic Patient IDs (<strong style={{ color: '#fff' }}>VIT-2026-XXXXXX</strong>) and permanent SQLite database storage.
             </p>
           </div>
 
@@ -124,15 +134,15 @@ export default function LoginPage({ onLoginSuccess }) {
         </div>
 
         {/* Right Form Panel */}
-        <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ padding: '36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           
           {/* Role Selection Tabs */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '14px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '14px', marginBottom: '20px' }}>
             {['doctor', 'nurse', 'patient', 'admin'].map((r) => (
               <button
                 key={r}
                 type="button"
-                onClick={() => setSelectedRole(r)}
+                onClick={() => { setSelectedRole(r); setError(''); setSuccessMsg(''); }}
                 style={{
                   flex: 1, padding: '8px 4px', borderRadius: '10px', border: 'none', cursor: 'pointer',
                   fontWeight: 800, fontSize: '0.78rem', textTransform: 'capitalize',
@@ -146,28 +156,38 @@ export default function LoginPage({ onLoginSuccess }) {
             ))}
           </div>
 
-          <h3 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 900, color: '#0f172a' }}>
-            {isRegister ? `Register New ${selectedRole.toUpperCase()}` : `${selectedRole.toUpperCase()} Login`}
+          <h3 style={{ margin: '0 0 4px', fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>
+            {isRegister ? `Register New ${selectedRole.toUpperCase()} Account` : `${selectedRole.toUpperCase()} Login`}
           </h3>
-          <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: '#64748b' }}>
-            {selectedRole === 'patient' ? 'Patients can self-register or log in to view their own records.' : `Restricted area. Only authorized ${selectedRole}s may log in.`}
+          <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: '#64748b' }}>
+            {isRegister 
+              ? `Fill in details to register as an official ${selectedRole} in the Vitalis hospital system.` 
+              : `Enter your credentials to log in as a ${selectedRole}.`}
           </p>
 
           {error && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, marginBottom: '16px' }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '10px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, marginBottom: '14px' }}>
               ⚠️ {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {successMsg && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', padding: '10px 14px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, marginBottom: '14px' }}>
+              {successMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {isRegister && (
               <>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '4px', display: 'block' }}>Full Name</label>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>
+                    Full Name {selectedRole === 'doctor' ? '(e.g. Dr. Robert Chen)' : ''}
+                  </label>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="e.g. Jane Doe"
+                    placeholder={selectedRole === 'doctor' ? 'e.g. Dr. Robert Chen, MD' : selectedRole === 'nurse' ? 'e.g. Nurse Jessica Taylor, RN' : 'e.g. Jane Doe'}
                     value={name}
                     onChange={e => setName(e.target.value)}
                     required
@@ -176,17 +196,17 @@ export default function LoginPage({ onLoginSuccess }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '4px', display: 'block' }}>Email Address</label>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>Email Address</label>
                     <input
                       type="email"
                       className="input-field"
-                      placeholder="jane@example.com"
+                      placeholder="user@vitalis.org"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '4px', display: 'block' }}>Phone Number</label>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>Phone Number</label>
                     <input
                       type="text"
                       className="input-field"
@@ -196,17 +216,42 @@ export default function LoginPage({ onLoginSuccess }) {
                     />
                   </div>
                 </div>
+
+                {(selectedRole === 'doctor' || selectedRole === 'nurse' || selectedRole === 'admin') && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>Department</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Cardiology / ER"
+                        value={department}
+                        onChange={e => setDepartment(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>Staff License / ID</label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. MED-8821"
+                        value={staffId}
+                        onChange={e => setStaffId(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
             <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '4px', display: 'block' }}>
-                Username / Patient ID
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>
+                Username {selectedRole === 'patient' && !isRegister ? '/ Patient ID (VIT-2026-XXXXXX)' : ''}
               </label>
               <input
                 type="text"
                 className="input-field"
-                placeholder={selectedRole === 'patient' ? 'e.g. patient or VIT-2026-000001' : 'e.g. doctor, nurse, admin'}
+                placeholder={isRegister ? `Create ${selectedRole} username` : `Enter ${selectedRole} username`}
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required
@@ -214,7 +259,7 @@ export default function LoginPage({ onLoginSuccess }) {
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>Password</label>
                 <span onClick={() => alert('Demo password is: password123')} style={{ fontSize: '0.72rem', color: '#0096c7', cursor: 'pointer', fontWeight: 700 }}>
                   Forgot Password?
@@ -248,20 +293,19 @@ export default function LoginPage({ onLoginSuccess }) {
               </label>
             </div>
 
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '12px', fontSize: '0.9rem', marginTop: '6px' }}>
-              {loading ? 'Authenticating...' : isRegister ? `📝 Register & Access System` : `🔐 Log In as ${selectedRole.toUpperCase()}`}
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '12px', fontSize: '0.88rem', marginTop: '4px' }}>
+              {loading ? 'Processing...' : isRegister ? `📝 Register ${selectedRole.toUpperCase()} Account` : `🔐 Log In as ${selectedRole.toUpperCase()}`}
             </button>
           </form>
 
-          {selectedRole === 'patient' && (
-            <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.82rem', color: '#64748b' }}>
-              {isRegister ? (
-                <>Already have a Patient ID? <span onClick={() => setIsRegister(false)} style={{ color: '#0096c7', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}>Log In</span></>
-              ) : (
-                <>New Patient? <span onClick={() => setIsRegister(true)} style={{ color: '#0096c7', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}>Register Patient Account</span></>
-              )}
-            </div>
-          )}
+          {/* Toggle between Register and Login for ALL roles */}
+          <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.82rem', color: '#64748b' }}>
+            {isRegister ? (
+              <>Already have a {selectedRole} account? <span onClick={() => { setIsRegister(false); setError(''); setSuccessMsg(''); }} style={{ color: '#0096c7', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}>Log In Here</span></>
+            ) : (
+              <>Need a {selectedRole} account? <span onClick={() => { setIsRegister(true); setError(''); setSuccessMsg(''); }} style={{ color: '#0096c7', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline' }}>Register New {selectedRole.toUpperCase()} Account</span></>
+            )}
+          </div>
 
         </div>
 
