@@ -54,6 +54,32 @@ export async function fetchCalendarPatients() {
   return res.json();
 }
 
+export async function sendPrescription(patientId, prescription) {
+  const res = await fetch(`${API_BASE}/patients/${patientId}/prescription`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prescription)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to send prescription');
+  }
+  return res.json();
+}
+
+export async function updateMedicineStatus(patientId, data) {
+  const res = await fetch(`${API_BASE}/patients/${patientId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update medicine status');
+  }
+  return res.json();
+}
+
 export async function addCalendarPatient(data) {
   const res = await fetch(`${API_BASE}/calendar`, {
     method: 'POST',

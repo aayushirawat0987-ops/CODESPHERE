@@ -9,8 +9,6 @@ export default function Header({
   onViewChange,
   onGoHome,
 }) {
-  const isKiosk = currentView === 'patient';
-
   return (
     <header className="app-header">
       <div className="header-left">
@@ -18,24 +16,7 @@ export default function Header({
           id="header-home-btn"
           onClick={onGoHome}
           title="Back to home"
-          style={{
-            background: 'linear-gradient(135deg, #0096c7, #005b9f)',
-            border: 'none',
-            borderRadius: '12px',
-            width: '44px',
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.4rem',
-            fontWeight: 900,
-            color: '#fff',
-            cursor: 'pointer',
-            boxShadow: '0 0 15px rgba(0,150,199,0.4)',
-            transition: 'all 0.2s',
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; }}
-          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          className="header-logo-btn"
         >
           V
         </button>
@@ -43,84 +24,28 @@ export default function Header({
         <div className="title-block">
           <div className="brand-row">
             <h1 className="brand-title">VITALIS <span className="brand-accent">/ TriageAI</span></h1>
-            <span
-              className={isKiosk ? 'clinical-tag btn-warning' : 'clinical-tag'}
-              style={isKiosk ? { background: 'rgba(217, 119, 6, 0.15)', color: '#d97706', border: '1px solid #d97706' } : {}}
-            >
-              {isKiosk ? 'Self-Check-In Kiosk' : 'Clinical Decision-Support'}
-            </span>
+            <span className="clinical-tag">Clinical Decision-Support</span>
           </div>
-          <p className="brand-subtitle">
-            AI-assisted urgency evaluation and clinical safety guardrails. Human staff retains full override control.
-          </p>
         </div>
       </div>
 
-      <div className="header-center" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto', marginRight: '20px', flexWrap: 'wrap' }}>
-        <button
-          className={`btn ${currentView === 'triage' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('triage')}
-        >
-          Triage Dashboard
-        </button>
-        <button
-          className={`btn ${currentView === 'analytics' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('analytics')}
-        >
-          📊 Analytics
-        </button>
-        <button
-          className={`btn ${currentView === 'calendar' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('calendar')}
-        >
-          Patient Calendar
-        </button>
-        <button
-          className={`btn ${currentView === 'voice' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('voice')}
-        >
-          🎙️ Voice AI
-        </button>
-        <button
-          className={`btn ${currentView === 'face' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('face')}
-        >
-          📷 Face Scanner
-        </button>
-        <button
-          className={`btn ${currentView === 'contact' ? 'btn-primary' : 'btn-secondary-ghost'}`}
-          onClick={() => onViewChange('contact')}
-        >
-          Contact
-        </button>
-      </div>
-
       <div className="header-actions">
-        {isKiosk ? (
-          <button
-            className="btn btn-warning"
-            onClick={() => {
-              const confirmExit = window.confirm('Are you a clinician? Click OK to exit Kiosk Mode and return to the Nurse Dashboard.');
-              if (confirmExit) onViewChange('triage');
-            }}
-            title="Clinician password / verification gate"
-          >
-            Exit Kiosk (Staff Only)
-          </button>
-        ) : currentView === 'triage' && (
-          <>
-            <div className="live-status-pill">
-              <span className={`pulse-dot ${isRefreshing ? 'refreshing' : ''}`}></span>
-              <span className="live-text">Live Queue</span>
-            </div>
+        {/* Live status pill — always visible */}
+        <div className="live-status-pill">
+          <span className={`pulse-dot ${isRefreshing ? 'refreshing' : ''}`}></span>
+          <span className="live-text">Live Queue</span>
+        </div>
 
+        {/* Surge & Clear only on triage view */}
+        {currentView === 'triage' && (
+          <>
             <button
               className="btn btn-surge"
               onClick={onTriggerSurge}
               disabled={isSurging}
               title="Simulate rapid arrival of 9 realistic ER patients"
             >
-              {isSurging ? 'Simulating Surge...' : 'Demo Surge'}
+              {isSurging ? 'Simulating...' : '⚡ Demo Surge'}
             </button>
 
             <button
@@ -132,6 +57,20 @@ export default function Header({
             </button>
           </>
         )}
+
+        {/* Notifications bell */}
+        <button className="header-icon-btn" title="Notifications">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span className="header-notif-badge">3</span>
+        </button>
+
+        {/* Profile avatar */}
+        <button className="header-avatar-btn" title="Profile">
+          <span className="header-avatar-initials">DR</span>
+        </button>
       </div>
     </header>
   );

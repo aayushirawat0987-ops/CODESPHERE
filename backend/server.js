@@ -160,6 +160,32 @@ const server = http.createServer(async (req, res) => {
       return json(updatedRecord);
     }
 
+    // PATCH /api/patients/:id/prescription
+    if (pathname.startsWith("/api/patients/") && pathname.endsWith("/prescription") && req.method === "PATCH") {
+      const parts = pathname.split("/");
+      const id = parts[3];
+      const body = await readJsonBody(req);
+      const updatedRecord = db.addPrescription(id, body);
+      if (!updatedRecord) return error("Patient record not found", 404);
+      return json(updatedRecord);
+    }
+
+    // PATCH /api/patients/:id/status
+    if (pathname.startsWith("/api/patients/") && pathname.endsWith("/status") && req.method === "PATCH") {
+      const parts = pathname.split("/");
+      const id = parts[3];
+      const body = await readJsonBody(req);
+      const { status } = body;
+
+      if (!status) {
+        return error("status is required", 422);
+      }
+
+      const updatedRecord = db.updateTreatmentStatus(id, status);
+      if (!updatedRecord) return error("Patient record not found", 404);
+      return json(updatedRecord);
+    }
+
     // POST /api/surge
     if (pathname === "/api/surge" && req.method === "POST") {
       runSurgeSimulationBatch().catch(err => console.error("Surge error:", err));

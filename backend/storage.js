@@ -56,11 +56,60 @@ class PatientStorage {
       gender: intake.gender || null,
       medical_history: intake.medical_history || null,
       allergies: intake.allergies || null,
-      current_medications: intake.current_medications || null
+      current_medications: intake.current_medications || null,
+      treatment_status: 'Waiting',
+      prescription: null,
+      activity_log: []
     };
 
     this.patients.set(patientId, record);
     return record;
+  }
+
+  recordActivity(patient, message) {
+    if (!patient) return;
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    patient.activity_log = patient.activity_log || [];
+    patient.activity_log.unshift({
+      time: now,
+      message
+    });
+  }
+
+  addPrescription(patientId, prescription) {
+    const patient = this.patients.get(patientId);
+    if (!patient) return null;
+
+    const safePrescription = {
+      medicine_name: prescription.medicine_name || '',
+      dosage: prescription.dosage || '',
+      frequency: prescription.frequency || '',
+      duration: prescription.duration || '',
+      notes: prescription.notes || '',
+      follow_up: prescription.follow_up || ''
+    };
+
+    patient.prescription = safePrescription;
+    patient.treatment_status = 'Medication Ordered';
+    this.recordActivity(patient, 'Prescription sent to pharmacy.');
+    this.patients.set(patientId, patient);
+    return patient;
+  }
+
+  updateTreatmentStatus(patientId, status) {
+    const patient = this.patients.get(patientId);
+    if (!patient) return null;
+
+    const normalized = status === 'Dispensed' ? 'Treatment Completed' : status === 'Medicine Dispensed' ? 'Treatment Completed' : status;
+    patient.treatment_status = normalized === 'Treatment Completed' ? 'Treatment Completed' : normalized;
+
+    const message = normalized === 'Treatment Completed'
+      ? 'Medicine dispensed and treatment completed.'
+      : `${normalized} status updated by pharmacy.`;
+
+    this.recordActivity(patient, message);
+    this.patients.set(patientId, patient);
+    return patient;
   }
 
   getAllPatients() {
@@ -95,6 +144,7 @@ class PatientStorage {
     patient.is_overridden = true;
     patient.override = overrideInfo;
     patient.effective_urgency_score = req.score;
+    this.recordActivity(patient, `Staff override applied: ${req.reason}`);
 
     this.patients.set(patientId, patient);
     return patient;

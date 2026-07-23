@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
+import DoctorDashboard from './components/DoctorDashboard';
+import PharmacyDashboard from './components/PharmacyDashboard';
+import Sidebar from './components/Sidebar';
 import OverrideModal from './components/OverrideModal';
 import PatientProfileModal from './components/PatientProfileModal';
 import MedicalReportModal from './components/MedicalReportModal';
@@ -15,10 +18,11 @@ import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, f
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'analytics' | 'calendar' | 'voice' | 'face' | 'contact'
+  // 'landing' | 'dashboard'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -202,78 +206,106 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
-      {/* Emergency Surge Alert Banner */}
-      {isSurging && (
-        <div style={{
-          background: 'linear-gradient(90deg, #dc2626, #b91c1c, #dc2626)',
-          color: '#fff', padding: '10px 20px', textAlign: 'center', fontWeight: 900,
-          fontSize: '0.9rem', letterSpacing: '1px', textTransform: 'uppercase',
-          boxShadow: '0 4px 20px rgba(220,38,38,0.5)', animation: 'pulse 1s infinite'
-        }}>
-          🚨 EMERGENCY SURGE IN PROGRESS — 9 HIGH-ACUITY PATIENTS ARRIVING IN QUEUE
-        </div>
-      )}
+    <div className="app-shell">
+      {/* Fixed Left Sidebar — Primary Navigation */}
+      <Sidebar currentView={currentView} onViewChange={handleViewChange} onCollapse={setSidebarCollapsed} />
 
-      {/* Top Navigation Bar */}
-      <Header
-        onTriggerSurge={handleTriggerSurge}
-        onClearQueue={handleClearQueue}
-        isSurging={isSurging}
-        isRefreshing={isRefreshing}
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        onGoHome={() => setAppState('landing')}
-      />
-
-      {/* Main Workspace Views */}
-      <main className="main-content">
-        {currentView === 'triage' && (
-          <div className="grid-layout">
-            <aside className="column-intake">
-              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
-            </aside>
-            <section className="column-dashboard">
-              <NurseDashboard
-                patients={patients}
-                onOpenOverride={(p) => setOverridePatient(p)}
-                onOpenProfile={(p) => setProfilePatient(p)}
-                onOpenReport={(p) => setReportPatient(p)}
-                lastUpdated={lastUpdated}
-              />
-            </section>
+      {/* Right side: Header + Content */}
+      <div className={`app-main-wrapper ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* Emergency Surge Alert Banner */}
+        {isSurging && (
+          <div className="surge-alert-banner">
+            🚨 EMERGENCY SURGE IN PROGRESS — 9 HIGH-ACUITY PATIENTS ARRIVING IN QUEUE
           </div>
         )}
 
-        {currentView === 'analytics' && (
-          <AnalyticsView patients={patients} />
-        )}
+        {/* Top Header */}
+        <Header
+          onTriggerSurge={handleTriggerSurge}
+          onClearQueue={handleClearQueue}
+          isSurging={isSurging}
+          isRefreshing={isRefreshing}
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          onGoHome={() => setAppState('landing')}
+        />
 
-        {currentView === 'calendar' && (
-          <CalendarView
-            patients={calendarPatients}
-            onPatientsUpdated={loadCalendarPatients}
-          />
-        )}
+        {/* Main Workspace Views */}
+        <main className="main-content">
+          {currentView === 'triage' && (
+            <div className="triage-layout">
+              <aside className="column-intake">
+                <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+              </aside>
 
-        {currentView === 'voice' && (
-          <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <VoiceAnalyzer />
-          </div>
-        )}
+              <section className="column-dashboard">
+                <NurseDashboard
+                  patients={patients}
+                  onOpenOverride={(p) => setOverridePatient(p)}
+                  onOpenProfile={(p) => setProfilePatient(p)}
+                  onOpenReport={(p) => setReportPatient(p)}
+                  lastUpdated={lastUpdated}
+                />
+              </section>
+            </div>
+          )}
 
-        {currentView === 'face' && (
-          <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
-            <FaceAnalyzer />
-          </div>
-        )}
+          {currentView === 'analytics' && (
+            <AnalyticsView patients={patients} />
+          )}
 
-        {currentView === 'contact' && (
-          <ContactPage
-            onSubmitSuccess={(message) => showToast(message)}
-          />
-        )}
-      </main>
+          {currentView === 'doctor' && (
+            <DoctorDashboard
+              patients={patients}
+              onRefresh={loadPatients}
+              lastUpdated={lastUpdated}
+              showToast={showToast}
+            />
+          )}
+
+          {currentView === 'pharmacy' && (
+            <PharmacyDashboard
+              patients={patients}
+              onRefresh={loadPatients}
+              lastUpdated={lastUpdated}
+              showToast={showToast}
+            />
+          )}
+
+          {currentView === 'calendar' && (
+            <CalendarView
+              patients={calendarPatients}
+              onPatientsUpdated={loadCalendarPatients}
+            />
+          )}
+
+          {currentView === 'voice' && (
+            <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+              <VoiceAnalyzer />
+            </div>
+          )}
+
+          {currentView === 'face' && (
+            <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
+              <FaceAnalyzer />
+            </div>
+          )}
+
+          {currentView === 'contact' && (
+            <ContactPage
+              onSubmitSuccess={(message) => showToast(message)}
+            />
+          )}
+        </main>
+
+        {/* Clinical Disclaimer Footer */}
+        <footer className="app-footer">
+          <p>
+            <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
+            Emergency clinicians maintain complete authority and final decision control at all times.
+          </p>
+        </footer>
+      </div>
 
       {/* Staff Override Modal Dialog */}
       {overridePatient && (
@@ -308,14 +340,6 @@ export default function App() {
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Clinical Disclaimer Footer */}
-      <footer className="app-footer">
-        <p>
-          <strong>⚠️ Vitalis TriageAI Decision-Support System:</strong> FOR DEMONSTRATION &amp; TRIAGE STAFF SUPPORT ONLY.
-          NOT A DIAGNOSTIC MEDICAL DEVICE. Emergency clinicians maintain complete authority and final decision control at all times.
-        </p>
-      </footer>
     </div>
   );
 }
