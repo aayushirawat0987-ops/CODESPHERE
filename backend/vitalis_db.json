@@ -217,6 +217,16 @@
   "appointments": [],
   "audit_logs": [
     {
+      "id": "log_1784826088847_o0v8",
+      "timestamp": "2026-07-23 17:01:28",
+      "date": "2026-07-23",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
       "id": "log_1784825381970_m881",
       "timestamp": "2026-07-23 16:49:41",
       "date": "2026-07-23",
