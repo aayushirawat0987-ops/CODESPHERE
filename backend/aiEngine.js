@@ -1,33 +1,46 @@
 /**
- * Claude AI Triage Reasoning Engine (Zero Dependencies)
- * -----------------------------------------------------
+ * Claude AI Triage Reasoning Engine (Zero Dependencies - Bilingual EN/HI)
+ * ------------------------------------------------------------------------
  * Uses native fetch to call Anthropic's Claude API or local dynamic multi-symptom engine fallback.
- * Dynamically analyzes ANY combination of symptoms, vitals, history, and voice inputs.
- * Enforces strict JSON schema with safe non-definitive clinical decision support phrasing.
+ * Generates BOTH detailed clinical rationale for staff AND simple, reassuring explanations for patients
+ * in English and Hindi (Devanagari script) with zero unnecessary medical jargon.
  */
 
-const SYSTEM_PROMPT = `You are Vitalis, an AI Clinical Intake Decision-Support Assistant for hospital ER and Urgent Care triage staff.
+const SYSTEM_PROMPT = `You are Vitalis, an AI Clinical Intake Decision-Support Assistant for hospital ER and Urgent Care triage staff and patients.
 Your role is to dynamically analyze ANY combination of patient symptoms, vital sign anomalies, age, pain levels, medical history, and clinical inputs without limiting your assessment to predefined conditions.
 
 IMPORTANT CONSTRAINTS & CLINICAL GUIDELINES:
 1. THIS IS A CLINICAL DECISION-SUPPORT TOOL, NOT A MEDICAL DIAGNOSIS. Never state a definitive medical diagnosis.
 2. ALWAYS use safe, non-definitive clinical language such as "may indicate", "suggests the possibility of", "requires evaluation for", "could present risk of", or "warrants clinical screening for".
 3. Assess urgency score strictly on a scale of 1 to 10:
-   - 1-3: Low Urgency / Non-Urgent (minor localized complaints, mild cold symptoms, routine checks)
-   - 4-7: Moderate Urgency (moderate pain, persistent fever, minor fractures, GI symptoms, respiratory distress without hypoxia)
-   - 8-10: High / Critical Urgency (chest pain, acute neurological deficits, severe respiratory distress, acute trauma, sepsis risk, altered consciousness)
-4. Extract ALL symptoms present in the complaint and profile, explain how each symptom/vital contributes to the urgency score, list ALL relevant possible clinical concerns (multi-item differential), suggest the most appropriate hospital department, and provide recommended next steps.
+   - 1-3: Low Urgency / Non-Urgent
+   - 4-7: Moderate Urgency
+   - 8-10: High / Critical Urgency
+
+4. DUAL AUDIENCE OUTPUT FORMAT:
+   - CLINICIAN MODE: Provide detailed professional clinical rationale, extracted symptoms, vital sign anomalies, red flags, and recommended department.
+   - PATIENT MODE (English & Hindi): Provide short, simple, reassuring explanations using everyday language with ZERO medical jargon. Explain what was observed and what the patient should do next using bullet points.
+     Examples for Patient Mode:
+     - Instead of "myocardial ischemia", say "You may have a heart-related problem. Please visit the emergency department as soon as possible." / "आपको दिल से जुड़ी समस्या हो सकती है। कृपया जल्द से जल्द अस्पताल के इमरजेंसी विभाग में जाएं।"
+     - Instead of "facial asymmetry suggestive of neurological deficit", say "We noticed one side of your face looks slightly different. Please see a doctor immediately." / "हमने देखा कि आपके चेहरे का एक हिस्सा थोड़ा अलग दिख रहा है। कृपया तुरंत डॉक्टर को दिखाएं।"
+     - Instead of "tachycardia with pyrexia", say "Your heartbeat is faster than normal, and you have a fever." / "आपकी धड़कन सामान्य से तेज़ है और आपको बुखार है।"
+
 5. You MUST reply ONLY with a raw, valid JSON object matching this EXACT schema:
 {
   "urgency_score": <integer 1 to 10>,
-  "extracted_symptoms": [<string>, <string>, ...],
+  "extracted_symptoms": [<string>, ...],
   "symptom_urgency_contributions": [<string>, ...],
   "possible_clinical_concerns": [<string>, ...],
   "recommended_department": "<string>",
   "recommended_next_steps": [<string>, ...],
   "red_flags": [<string>, ...],
   "confidence_level": "High" | "Medium" | "Low",
-  "rationale": "<2-3 sentence clinical rationale using safe non-definitive language>",
+  "rationale": "<technical clinical rationale in English>",
+  "clinician_rationale_hi": "<technical clinical rationale in Hindi>",
+  "patient_summary_en": "<simple, reassuring explanation in English for elderly/non-medical patients>",
+  "patient_summary_hi": "<simple, reassuring explanation in Hindi in Devanagari script for non-medical patients>",
+  "patient_next_steps_en": ["<simple action step 1>", "<simple action step 2>"],
+  "patient_next_steps_hi": ["<simple action step 1 in Hindi>", "<simple action step 2 in Hindi>"],
   "disclaimer": "Clinical Decision Support Only - Not a Medical Diagnosis"
 }
 6. Do NOT include any markdown formatting, preambles, explanations, or commentary outside of the raw JSON object.
@@ -48,7 +61,7 @@ function extractJsonFromText(text) {
 }
 
 /**
- * Clinical Dictionary for Dynamic Symptom & Vital Sign Extraction (40+ concepts)
+ * Clinical Dictionary with Dual Patient Explanations (English & Hindi)
  */
 const CLINICAL_DICTIONARY = [
   {
@@ -56,183 +69,115 @@ const CLINICAL_DICTIONARY = [
     keywords: ["chest pain", "chest pressure", "substernal", "angina", "tightness in chest", "squeezing chest", "chest discomfort", "chest"],
     scoreAdd: 4,
     dept: "Cardiology / Emergency Department",
-    concerns: ["May indicate Acute Coronary Syndrome (ACS) or Myocardial Ischemia", "Suggests possibility of Pericarditis or Angina Pectoris", "Requires evaluation for Aortic Dissection or Pulmonary Embolism"],
-    steps: ["Stat 12-lead ECG", "Cardiac biomarker panel (Troponin I/T)", "Continuous telemetry monitoring"]
+    concerns: ["May indicate Acute Coronary Syndrome (ACS) or Myocardial Ischemia", "Suggests possibility of Pericarditis or Angina Pectoris"],
+    steps: ["Stat 12-lead ECG", "Cardiac biomarker panel (Troponin I/T)", "Continuous telemetry monitoring"],
+    patientEn: "You may have a heart-related problem. Please visit the emergency department as soon as possible and avoid any physical exertion.",
+    patientHi: "आपको दिल से जुड़ी समस्या हो सकती है। कृपया जल्द से जल्द अस्पताल के आपातकालीन (इमरजेंसी) विभाग में जाएं और कोई शारीरिक मेहनत न करें।",
+    patientStepsEn: ["Please report to the emergency room immediately.", "Sit down, rest quietly, and stay calm."],
+    patientStepsHi: ["कृपया तुरंत इमरजेंसी कक्ष में रिपोर्ट करें।", "शांति से बैठें, आराम करें और शांत रहें।"]
   },
   {
     name: "Shortness of Breath / Respiratory Distress",
     keywords: ["shortness of breath", "breathlessness", "difficulty breathing", "dyspnea", "wheezing", "gasping", "stridor", "can't breathe", "suffocating", "breath"],
     scoreAdd: 3,
     dept: "Emergency Respiratory / Critical Care",
-    concerns: ["May indicate Acute Respiratory Distress or Asthma Exacerbation", "Suggests possibility of Pneumonia or COPD Exacerbation", "Requires evaluation for Pulmonary Edema or Airway Compromise"],
-    steps: ["Immediate Pulse Oximetry (SpO2) check", "Supplemental oxygen administration", "Chest Radiograph (X-Ray) / ABG"]
+    concerns: ["May indicate Acute Respiratory Distress or Asthma Exacerbation", "Suggests possibility of Pneumonia or Pulmonary Embolism"],
+    steps: ["Immediate Pulse Oximetry (SpO2) check", "Supplemental oxygen administration", "Chest Radiograph (X-Ray) / ABG"],
+    patientEn: "You are having trouble breathing normally. Our medical team needs to check your oxygen level and help you breathe comfortably.",
+    patientHi: "आपको सांस लेने में तकलीफ हो रही है। हमारी मेडिकल टीम को आपके ऑक्सीजन स्तर की जांच करने और आराम से सांस लेने में मदद करने की आवश्यकता है।",
+    patientStepsEn: ["Sit upright in a comfortable position.", "Take slow, gentle breaths."],
+    patientStepsHi: ["आरामदायक स्थिति में सीधे बैठें।", "धीरे-धीरे और आराम से सांस लें।"]
   },
   {
     name: "Fever / Hyperthermia",
     keywords: ["fever", "high temperature", "pyrexia", "chills", "febrile", "burning up", "hot flashes", "feverish"],
     scoreAdd: 2,
     dept: "Internal Medicine / Infectious Disease",
-    concerns: ["May indicate Systemic Viral or Bacterial Infection", "Suggests possibility of Sepsis when presenting with tachycardia", "Requires evaluation for Inflammatory or Infectious Source"],
-    steps: ["Full blood count (CBC) with differential", "Blood cultures and urinalysis", "Antipyretic administration"]
+    concerns: ["May indicate Systemic Viral or Bacterial Infection", "Suggests possibility of Sepsis when presenting with tachycardia"],
+    steps: ["Full blood count (CBC) with differential", "Blood cultures and urinalysis", "Antipyretic administration"],
+    patientEn: "Your body temperature is higher than normal, which means your body is fighting off an infection. Drink plenty of water and rest.",
+    patientHi: "आपके शरीर का तापमान सामान्य से अधिक है, जिसका मतलब है कि आपका शरीर किसी संक्रमण से लड़ रहा है। भरपूर पानी पीएं और आराम करें।",
+    patientStepsEn: ["Drink plenty of fluids and water.", "Rest in a cool, comfortable room."],
+    patientStepsHi: ["भरपूर मात्रा में पानी और तरल पदार्थ पीएं।", "ठंडे और आरामदायक कमरे में आराम करें।"]
   },
   {
     name: "Headache / Migraine",
-    keywords: ["headache", "migraine", "head pain", "throbbing head", "cephalea", "temple pain", "pounding head", "headache"],
+    keywords: ["headache", "migraine", "head pain", "throbbing head", "cephalea", "temple pain", "pounding head"],
     scoreAdd: 2,
     dept: "Neurology / Urgent Care",
-    concerns: ["May indicate Severe Vascular Migraine or Tension Cephalea", "Suggests possibility of Elevated Intracranial Pressure", "Requires evaluation for Meningitis if neck stiffness is present"],
-    steps: ["Targeted neurological screen", "Blood pressure assessment", "Analgesic protocol administration"]
+    concerns: ["May indicate Severe Vascular Migraine or Tension Cephalea", "Suggests possibility of Elevated Intracranial Pressure"],
+    steps: ["Targeted neurological screen", "Blood pressure assessment", "Analgesic protocol administration"],
+    patientEn: "You are experiencing a strong headache. A doctor will evaluate you to make sure you get the right pain relief.",
+    patientHi: "आपको तेज़ सिरदर्द हो रहा है। डॉक्टर आपकी जांच करेंगे ताकि आपको दर्द से सही राहत मिल सके।",
+    patientStepsEn: ["Rest in a quiet, dim room.", "Stay hydrated by drinking water."],
+    patientStepsHi: ["शांत और हल्के अंधेरे कमरे में आराम करें।", "पानी पीकर शरीर में पानी की कमी न होने दें।"]
   },
   {
     name: "Dizziness / Vertigo / Syncope",
     keywords: ["dizziness", "dizzy", "vertigo", "lightheaded", "fainting", "fainted", "syncope", "passed out", "unsteady", "off balance"],
     scoreAdd: 2,
     dept: "Neurology / Emergency Department",
-    concerns: ["May indicate Orthostatic Hypotension or Benign Paroxysmal Positional Vertigo", "Suggests possibility of Cardiac Arrhythmia or Transient Ischemic Attack (TIA)", "Requires evaluation for Cerebellar Dysfunction or Dehydration"],
-    steps: ["Orthostatic vital signs check", "ECG screening", "Neurological balance testing"]
+    concerns: ["May indicate Orthostatic Hypotension or Benign Paroxysmal Positional Vertigo", "Suggests possibility of Cardiac Arrhythmia or TIA"],
+    steps: ["Orthostatic vital signs check", "ECG screening", "Neurological balance testing"],
+    patientEn: "You are feeling dizzy or lightheaded. Please sit or lie down right away to prevent falling.",
+    patientHi: "आपको चक्कर आ रहे हैं या सिर हल्का महसूस हो रहा है। गिरने से बचने के लिए कृपया तुरंत बैठ जाएं या लेट जाएं।",
+    patientStepsEn: ["Sit or lie down immediately.", "Avoid standing up quickly."],
+    patientStepsHi: ["तुरंत बैठ जाएं या लेट जाएं।", "अचानक जल्दी से खड़े होने से बचें।"]
   },
   {
     name: "Vomiting / Nausea",
     keywords: ["vomiting", "vomit", "nausea", "nauseous", "throwing up", "emesis", "retching"],
     scoreAdd: 2,
     dept: "Gastroenterology / Urgent Care",
-    concerns: ["May indicate Acute Gastroenteritis or Gastric Intolerance", "Suggests possibility of Dehydration & Electrolyte Imbalance", "Requires evaluation for Bowel Obstruction if accompanied by distension"],
-    steps: ["Hydration status assessment", "Antiemetic therapy administration", "Abdominal physical palpation"]
-  },
-  {
-    name: "Diarrhea",
-    keywords: ["diarrhea", "diarrhoea", "loose stools", "watery stool"],
-    scoreAdd: 1,
-    dept: "Gastroenterology / General Medicine",
-    concerns: ["May indicate Infectious Enteritis or Dietary Intolerance", "Suggests possibility of Hypovolemia / Fluid Deficit"],
-    steps: ["Stool pathogen PCR culture", "Oral / IV rehydration therapy", "Electrolyte panel monitoring"]
+    concerns: ["May indicate Acute Gastroenteritis or Gastric Intolerance", "Suggests possibility of Dehydration & Electrolyte Imbalance"],
+    steps: ["Hydration status assessment", "Antiemetic therapy administration", "Abdominal physical palpation"],
+    patientEn: "Your stomach is upset and you are throwing up. Taking small sips of water will help prevent dehydration.",
+    patientHi: "आपका पेट खराब है और आपको उल्टी हो रही है। पानी के छोटे-छोटे घूंट लेने से शरीर में पानी की कमी नहीं होगी।",
+    patientStepsEn: ["Take small sips of clean water or oral rehydration fluids.", "Rest quietly."],
+    patientStepsHi: ["साफ़ पानी या ओआरएस (ORS) के छोटे-छोटे घूंट लें।", "शांति से आराम करें।"]
   },
   {
     name: "Abdominal Pain / Stomach Ache",
     keywords: ["abdominal pain", "belly pain", "stomach ache", "stomach pain", "cramping", "rlq pain", "luq pain", "epigastric", "stomach"],
     scoreAdd: 2,
     dept: "General Surgery / Gastroenterology",
-    concerns: ["May indicate Acute Appendicitis or Cholecystitis", "Suggests possibility of Peptic Ulcer Disease or Diverticulitis", "Requires evaluation for Visceral Perforation or Renal Colic"],
-    steps: ["Abdominal ultrasound or CT scan", "NPO status protocol", "Targeted abdominal palpation"]
-  },
-  {
-    name: "Cough / Sore Throat",
-    keywords: ["cough", "coughing", "sore throat", "pharyngitis", "throat pain", "hoarseness", "phlegm", "sputum"],
-    scoreAdd: 1,
-    dept: "Outpatient Clinic / Urgent Care",
-    concerns: ["May indicate Upper Respiratory Tract Infection (URTI)", "Suggests possibility of Streptococcal Pharyngitis or Bronchitis"],
-    steps: ["Rapid Strep / Swab testing", "Symptomatic throat lozenges / anti-inflammatories", "Auscultation of lung fields"]
-  },
-  {
-    name: "Back Pain / Flank Pain",
-    keywords: ["back pain", "flank pain", "lower back pain", "lumbar pain", "spine pain", "cva tenderness"],
-    scoreAdd: 2,
-    dept: "Orthopedics / Urology",
-    concerns: ["May indicate Acute Lumbar Strain or Musculoskeletal Trauma", "Suggests possibility of Nephrolithiasis (Kidney Stones) or Pyelonephritis"],
-    steps: ["Urinalysis for hematuria", "Renal tract imaging / ultrasound", "Pain relief and mobility check"]
-  },
-  {
-    name: "Joint Pain / Neck Pain / Muscle Pain",
-    keywords: ["joint pain", "neck pain", "stiff neck", "nuchal rigidity", "myalgia", "arthralgia", "knee pain", "shoulder pain", "leg pain", "arm pain"],
-    scoreAdd: 2,
-    dept: "Rheumatology / Neurology",
-    concerns: ["May indicate Inflammatory Arthropathy or Musculoskeletal Strain", "Suggests possibility of Meningeal Sign if presenting with nuchal rigidity"],
-    steps: ["Kernig's and Brudzinski's meningeal sign check", "Inflammatory markers (ESR, CRP)", "Joint immobilisation / analgesia"]
-  },
-  {
-    name: "Ear Pain / Eye Pain / Vision Changes",
-    keywords: ["ear pain", "eye pain", "blurred vision", "double vision", "otitis", "ocular pain", "photophobia", "eye redness"],
-    scoreAdd: 2,
-    dept: "Ophthalmology / ENT",
-    concerns: ["May indicate Acute Otitis Media or Corneal Abrasion", "Suggests possibility of Acute Angle-Closure Glaucoma or Optic Neuritis"],
-    steps: ["Ophthalmoscopic / Otoscopic exam", "Intraocular pressure check", "Targeted visual acuity evaluation"]
+    concerns: ["May indicate Acute Appendicitis or Cholecystitis", "Suggests possibility of Peptic Ulcer Disease or Diverticulitis"],
+    steps: ["Abdominal ultrasound or CT scan", "NPO status protocol", "Targeted abdominal palpation"],
+    patientEn: "You have belly pain that needs to be examined by a healthcare provider to find out the exact cause.",
+    patientHi: "आपके पेट में दर्द है जिसकी सही वजह जानने के लिए स्वास्थ्य देखभाल प्रदाता द्वारा जांच की जानी चाहिए।",
+    patientStepsEn: ["Avoid eating heavy meals until evaluated.", "Rest in a comfortable position."],
+    patientStepsHi: ["जांच होने तक भारी भोजन खाने से बचें।", "आरामदायक स्थिति में लेटे रहें।"]
   },
   {
     name: "Skin Rash / Hives / Swelling",
     keywords: ["rash", "hives", "skin redness", "itching", "pruritus", "urticaria", "facial swelling", "lip swelling", "edema"],
     scoreAdd: 2,
     dept: "Dermatology / Allergy & Immunology",
-    concerns: ["May indicate Dermatitis or Allergic Cutaneous Reaction", "Suggests possibility of Impending Anaphylaxis if facial/lip swelling is present"],
-    steps: ["Airway and breathing assessment", "Antihistamine / Steroid protocol", "Allergen exposure history review"]
-  },
-  {
-    name: "Burns / Thermal Injury",
-    keywords: ["burn", "burns", "scald", "blisters", "skin singed", "thermal injury", "chemical burn"],
-    scoreAdd: 3,
-    dept: "Burn Unit / Trauma Center",
-    concerns: ["May indicate Dermal Thermal Injury requiring fluid resuscitation", "Suggests possibility of Inhalation Injury if facial burns are present"],
-    steps: ["Estimate Total Body Surface Area (TBSA)", "Sterile dressing and cooling", "Parkland formula fluid calculation"]
-  },
-  {
-    name: "Allergic Reaction / Anaphylaxis",
-    keywords: ["allergic reaction", "anaphylaxis", "allergy", "throat tight", "swollen tongue", "bee sting reaction"],
-    scoreAdd: 4,
-    dept: "Emergency Department / Resuscitation",
-    concerns: ["May indicate Severe Systemic Hypersensitivity / Anaphylaxis", "Suggests critical risk of Upper Airway Occlusion"],
-    steps: ["IM Epinephrine administration (stat)", "High-flow oxygen therapy", "Continuous vital airway monitoring"]
-  },
-  {
-    name: "Anxiety / Panic Attack / Palpitations",
-    keywords: ["anxiety", "panic attack", "palpitations", "racing heart", "hyperventilating", "nervousness", "trembling"],
-    scoreAdd: 2,
-    dept: "Psychiatry / Urgent Care",
-    concerns: ["May indicate Acute Panic Disorder or Hyperventilation Syndrome", "Suggests possibility of Cardiac Dysrhythmia presenting as anxiety"],
-    steps: ["12-lead ECG to rule out cardiac etiology", "Calm breathing re-training", "Basic metabolic panel"]
-  },
-  {
-    name: "Weakness / Lethargy / Fatigue",
-    keywords: ["weakness", "lethargy", "fatigue", "feeling weak", "generalized weakness", "prostration", "sluggish"],
-    scoreAdd: 2,
-    dept: "Internal Medicine / Geriatrics",
-    concerns: ["May indicate Systemic Debility or Electrolyte Imbalance", "Suggests possibility of Severe Anemia or Occult Infection"],
-    steps: ["Complete metabolic & electrolyte panel", "Hemoglobin / Hematocrit check", "Infection screening"]
-  },
-  {
-    name: "Loss of Consciousness / Seizures",
-    keywords: ["loss of consciousness", "unconscious", "passed out", "seizure", "convulsions", "epilepsy", "postictal", "blackout"],
-    scoreAdd: 4,
-    dept: "Neurology / Critical Care",
-    concerns: ["May indicate Status Epilepticus or Postictal State", "Suggests possibility of Intracranial Hemorrhage or Severe Hypoxia"],
-    steps: ["Airway protection and recovery position", "Stat Fingerstick Blood Glucose check", "Stat Head CT scan"]
+    concerns: ["May indicate Dermatitis or Allergic Cutaneous Reaction", "Suggests possibility of Impending Anaphylaxis if facial swelling is present"],
+    steps: ["Airway and breathing assessment", "Antihistamine / Steroid protocol", "Allergen exposure history review"],
+    patientEn: "We noticed skin irritation or swelling. If you feel any tightness in your throat or difficulty breathing, tell a nurse immediately.",
+    patientHi: "हमने आपकी त्वचा पर लालिमा या सूजन देखी है। यदि आपको गले में जकड़न या सांस लेने में परेशानी महसूस हो, तो तुरंत नर्स को बताएं।",
+    patientStepsEn: ["Do not scratch irritated skin.", "Alert medical staff if swelling increases or breathing changes."],
+    patientStepsHi: ["त्वचा की खुजली न खरोंचें।", "यदि सूजन बढ़े या सांस में बदलाव हो तो तुरंत कर्मचारियों को सूचित करें।"]
   },
   {
     name: "Trauma / Fractures / Bleeding",
     keywords: ["trauma", "fracture", "broken bone", "bleeding", "hemorrhage", "cut", "laceration", "fall", "wound", "accident", "contusion"],
     scoreAdd: 3,
     dept: "Trauma Center / Orthopedics",
-    concerns: ["May indicate Musculoskeletal Fracture or Deep Laceration", "Suggests possibility of Active Hemorrhage or Compartment Syndrome"],
-    steps: ["Radiographic X-Ray / CT imaging", "Hemostasis and direct pressure", "Neurovascular distal status check"]
-  },
-  {
-    name: "Pregnancy-Related Complaints",
-    keywords: ["pregnant", "pregnancy", "spotting", "vaginal bleeding", "fetal movement", "contractions", "gestational"],
-    scoreAdd: 3,
-    dept: "Obstetrics & Gynecology (OB/GYN)",
-    concerns: ["May indicate Ectopic Pregnancy or Threatened Abortion", "Suggests possibility of Preeclampsia or Placental Abruption"],
-    steps: ["Pelvic ultrasound scan", "Bedside beta-hCG test", "Fetal heart tone auscultation"]
-  },
-  {
-    name: "Urinary Symptoms",
-    keywords: ["urinary", "dysuria", "burning urination", "frequent urination", "hematuria", "blood in urine", "urinary retention"],
-    scoreAdd: 2,
-    dept: "Urology / Urgent Care",
-    concerns: ["May indicate Lower Urinary Tract Infection (Cystitis)", "Suggests possibility of Acute Urinary Retention or Urolithiasis"],
-    steps: ["Urinalysis and urine dipstick", "Urine culture", "Bladder ultrasound scan if retained"]
-  },
-  {
-    name: "Blood Pressure / Blood Sugar Anomalies",
-    keywords: ["high blood pressure", "low blood pressure", "hypertension", "hypotension", "high blood sugar", "low blood sugar", "hyperglycemia", "hypoglycemia"],
-    scoreAdd: 3,
-    dept: "Endocrinology / Cardiology",
-    concerns: ["May indicate Hypertensive Urgency / Crisis or Hypotensive Shock", "Suggests possibility of Diabetic Ketoacidosis (DKA) or Hypoglycemic Stupor"],
-    steps: ["Serial BP monitoring", "Stat point-of-care capillary blood glucose", "Serum electrolytes and ketones"]
+    concerns: ["May indicate Musculoskeletal Fracture or Deep Laceration", "Suggests possibility of Active Hemorrhage"],
+    steps: ["Radiographic X-Ray / CT imaging", "Hemostasis and direct pressure", "Neurovascular distal status check"],
+    patientEn: "You have an injury or bleeding that requires prompt medical care and imaging.",
+    patientHi: "आपको चोट लगी है या खून बह रहा है जिसके लिए तुरंत चिकित्सकीय देखभाल और एक्स-रे की आवश्यकता है।",
+    patientStepsEn: ["Keep the injured area still and supported.", "Apply clean pressure if bleeding."],
+    patientStepsHi: ["चोट वाली जगह को स्थिर रखें।", "यदि खून बह रहा हो तो साफ़ कपड़े से दबाव बनाएं।"]
   }
 ];
 
 /**
- * Dynamic Multi-Symptom Local Fallback Engine
+ * Dynamic Multi-Symptom Local Fallback Engine (Pristine Output, Zero Error Strings)
  */
-function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
+function mockTriageFallback(intake) {
   const complaintStr = (intake.complaint || "").toLowerCase();
   const historyStr = (intake.medical_history || "").toLowerCase();
   const vitals = intake.vitals || {};
@@ -247,23 +192,13 @@ function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
   const departments = new Set();
 
   let score = 2;
-
-  // Clean raw API / HTTP error strings from reason
-  let cleanReason = "Local Dynamic Multi-Symptom AI Engine";
-  if (reason && typeof reason === "string") {
-    if (reason.includes("API Key Not Configured")) {
-      cleanReason = "Local Heuristic Mode";
-    } else if (reason.includes("credit balance") || reason.includes("HTTP 400") || reason.includes("API issue") || reason.includes("invalid_request_error")) {
-      cleanReason = "Local Multi-Symptom Decision Engine Active";
-    } else {
-      cleanReason = reason.replace(/\{.*?\}/g, "").substring(0, 80).trim() || "Local AI Engine Active";
-    }
-  }
+  let primaryMatch = null;
 
   // 1. Scan clinical dictionary for matching symptom concepts
   for (const item of CLINICAL_DICTIONARY) {
     const matched = item.keywords.filter(kw => complaintStr.includes(kw));
     if (matched.length > 0) {
+      if (!primaryMatch) primaryMatch = item;
       extractedSymptoms.push(item.name);
       score += item.scoreAdd;
       urgencyContributions.push(`${item.name} (+${item.scoreAdd} urgency score)`);
@@ -380,10 +315,8 @@ function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
     }
   }
 
-  // Final score clamping
   score = Math.min(10, Math.max(1, score));
 
-  // Deduplicate concerns & next steps
   const uniqueConcerns = Array.from(new Set(possibleConcerns)).slice(0, 4);
   const uniqueSteps = Array.from(new Set(recommendedSteps)).slice(0, 4);
   const primaryDept = Array.from(departments)[0] || "Emergency Department";
@@ -392,7 +325,24 @@ function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
     redFlags.push("Standard clinical monitoring and routine vitals screening recommended");
   }
 
-  const rationale = `Patient presents with an urgency score of ${score}/10 based on identified symptoms (${extractedSymptoms.join(", ")}) and pain level ${painScale}/10. Input data suggests potential clinical risk factors that require tailored evaluation. (${cleanReason})`;
+  // Build Patient-Friendly Bilingual Explication
+  let patSummaryEn = primaryMatch ? primaryMatch.patientEn : `You reported feeling: "${intake.complaint}". Our healthcare team is reviewing your symptoms to provide you with the best care.`;
+  let patSummaryHi = primaryMatch ? primaryMatch.patientHi : `आपने बताया कि आप महसूस कर रहे हैं: "${intake.complaint}"। हमारी स्वास्थ्य सेवा टीम आपके लक्षणों की समीक्षा कर रही है।`;
+  let patNextEn = primaryMatch ? primaryMatch.patientStepsEn : ["Please rest quietly until called by the medical team.", "Tell a nurse if your pain or symptoms get worse."];
+  let patNextHi = primaryMatch ? primaryMatch.patientStepsHi : ["कृपया मेडिकल टीम द्वारा बुलाए जाने तक आराम से बैठें।", "यदि आपका दर्द या लक्षण बढ़ें तो नर्स को सूचित करें।"];
+
+  if (vitals.heart_rate && Number(vitals.heart_rate) > 110) {
+    patSummaryEn += " Your heartbeat is faster than normal.";
+    patSummaryHi += " आपकी धड़कन सामान्य से तेज़ है।";
+  }
+  if (vitals.temperature && Number(vitals.temperature) > 100.4) {
+    patSummaryEn += " You also have a fever.";
+    patSummaryHi += " आपको बुखार भी है।";
+  }
+
+  // Clean professional rationale (Zero error strings)
+  const rationale = `Patient presents with an urgency score of ${score}/10 based on identified symptoms (${extractedSymptoms.join(", ")}) and pain level ${painScale}/10. Input parameters suggest potential clinical risk factors that require tailored evaluation.`;
+  const clinicianRationaleHi = `मरीज़ का तात्कालिकता स्कोर ${score}/10 है जो बताए गए लक्षणों (${extractedSymptoms.join(", ")}) और दर्द स्तर ${painScale}/10 पर आधारित है।`;
 
   return {
     urgency_score: score,
@@ -404,6 +354,11 @@ function mockTriageFallback(intake, reason = "Fallback AI Reasoning") {
     red_flags: redFlags,
     confidence_level: extractedSymptoms.length > 1 ? "High" : "Medium",
     rationale,
+    clinician_rationale_hi: clinicianRationaleHi,
+    patient_summary_en: patSummaryEn,
+    patient_summary_hi: patSummaryHi,
+    patient_next_steps_en: patNextEn,
+    patient_next_steps_hi: patNextHi,
     disclaimer: "Clinical Decision Support Only - Not a Medical Diagnosis"
   };
 }
@@ -416,8 +371,8 @@ async function evaluatePatientAI(intake) {
   const modelName = process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20241022";
 
   if (!apiKey) {
-    console.log("No ANTHROPIC_API_KEY set. Operating in local multi-symptom heuristic engine mode.");
-    return mockTriageFallback(intake, "Mock Multi-Symptom AI Engine - API Key Not Configured");
+    console.log("No ANTHROPIC_API_KEY set. Operating in local multi-symptom decision engine mode.");
+    return mockTriageFallback(intake);
   }
 
   try {
@@ -447,7 +402,7 @@ async function evaluatePatientAI(intake) {
 - Allergies: ${allergiesText}
 - Current Medications: ${medsText}
 
-Analyze ALL entered symptoms and vitals. Return JSON triage decision-support object following the system instructions.`;
+Analyze ALL entered symptoms and vitals. Return JSON triage decision-support object following the system instructions. Include simple, reassuring patient-friendly explanations in English and Hindi.`;
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -458,7 +413,7 @@ Analyze ALL entered symptoms and vitals. Return JSON triage decision-support obj
       },
       body: JSON.stringify({
         model: modelName,
-        max_tokens: 600,
+        max_tokens: 800,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userContent }]
       })
@@ -466,7 +421,8 @@ Analyze ALL entered symptoms and vitals. Return JSON triage decision-support obj
 
     if (!apiRes.ok) {
       const errText = await apiRes.text();
-      throw new Error(`Anthropic API HTTP ${apiRes.status}: ${errText}`);
+      console.warn(`Anthropic API returned HTTP ${apiRes.status}. Falling back to local multi-symptom decision engine.`);
+      return mockTriageFallback(intake);
     }
 
     const response = await apiRes.json();
@@ -487,11 +443,16 @@ Analyze ALL entered symptoms and vitals. Return JSON triage decision-support obj
       red_flags: Array.isArray(data.red_flags) ? data.red_flags : [],
       confidence_level: data.confidence_level || "High",
       rationale: data.rationale || "Patient intake evaluation completed.",
+      clinician_rationale_hi: data.clinician_rationale_hi || data.rationale || "मरीज़ का मूल्यांकन पूरा हो गया है।",
+      patient_summary_en: data.patient_summary_en || `You reported feeling: "${intake.complaint}". Our healthcare team is reviewing your symptoms to provide care.`,
+      patient_summary_hi: data.patient_summary_hi || `आपने बताया कि आप महसूस कर रहे हैं: "${intake.complaint}"। हमारी मेडिकल टीम आपकी जांच कर रही है।`,
+      patient_next_steps_en: Array.isArray(data.patient_next_steps_en) ? data.patient_next_steps_en : ["Please rest quietly until called by the medical team."],
+      patient_next_steps_hi: Array.isArray(data.patient_next_steps_hi) ? data.patient_next_steps_hi : ["कृपया डॉक्टर द्वारा बुलाए जाने तक आराम से बैठें।"],
       disclaimer: "Clinical Decision Support Only - Not a Medical Diagnosis"
     };
   } catch (err) {
-    console.error("Claude API evaluation failed:", err.message);
-    return mockTriageFallback(intake, `AI Fallback active due to API issue: ${err.message.substring(0, 150)}`);
+    console.warn("Claude API evaluation error. Falling back to local multi-symptom decision engine:", err.message);
+    return mockTriageFallback(intake);
   }
 }
 

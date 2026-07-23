@@ -1,15 +1,14 @@
 /**
- * Vitalis / TriageAI - Zero-Dependency Node.js Backend Server
+ * Vitalis / TriageAI - Node.js Backend Server
  * -------------------------------------------------------------
- * Clinical Decision-Support Tool backend written using pure Node.js built-in HTTP module.
- * Features: Triage Queue, AI Decision Support, Safety Rule Engine, Voice Analysis, Face Vision API.
+ * Features: Triage Queue, Persistent SQLite/JSON Database, Auth System,
+ * Role-Based Access Control, Patient Timeline, Daily Stats, Audit Logs, Voice & Face Vision.
  */
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-// Load .env file automatically using built-in fs
 function loadEnv() {
   const envPath = path.join(__dirname, ".env");
   if (fs.existsSync(envPath)) {
@@ -25,7 +24,10 @@ function loadEnv() {
 }
 loadEnv();
 
-const { db, calendarDb } = require("./storage");
+const dbEngine = require("./db");
+const { PatientStorage, CalendarStorage } = require("./storage");
+const db = new PatientStorage();
+const calendarDb = new CalendarStorage();
 const { evaluateClinicalRules } = require("./ruleEngine");
 const { evaluatePatientAI } = require("./aiEngine");
 const { evaluateFaceImage } = require("./faceEngine");
@@ -35,7 +37,6 @@ const { analyzeVoiceTranscriptNLP } = require("./voiceSymptomMap");
 const PORT = parseInt(process.env.PORT || "8000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
-// Helper to read incoming JSON body
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -52,7 +53,6 @@ function readJsonBody(req) {
   });
 }
 
-// Surge simulation worker
 async function runSurgeSimulationBatch() {
   for (const p of SURGE_PATIENTS) {
     const vitalsObj = p.vitals || {};
@@ -76,13 +76,11 @@ async function runSurgeSimulationBatch() {
 
     const aiRes = await evaluatePatientAI(intake);
     db.addPatient(intake, aiRes, ruleRes);
-
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
 }
 
 const server = http.createServer(async (req, res) => {
-  // CORS Headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -100,153 +98,162 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(data));
   }
 
-  function error(message, status = 500) {
-    res.writeHead(status, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ detail: message }));
-  }
-
   try {
-    // GET /api/health
-    if (pathname === "/api/health" && req.method === "GET") {
-      return json({ status: "ok", service: "Vitalis TriageAI Core (Node.js with Voice & Face APIs)" });
+    // 1. Authentication Routes
+    if (pathname === "/api/auth/login" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      const user = dbEngine.findUserByUsername(body.username || "");
+      if (!user || user.password !== body.password) {
+        return json({ error: "Invalid username or password" }, 401);
+      }
+      dbEngine.logAction(user.id, user.username, user.role, "USER_LOGIN", `${user.name} logged in`);
+      return json({ user, token: `token_${user.id}` });
     }
 
-    // GET /api/patients
+    if (pathname === "/api/auth/register" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      if (!body.username || !body.name) {
+        return json({ error: "Username and name are required" }, 400);
+      }
+      const existing = dbEngine.findUserByUsername(body.username);
+      if (existing) {
+        return json({ error: "Username already exists" }, 400);
+      }
+      const newUser = dbEngine.createUser(body);
+      return json({ user: newUser, token: `token_${newUser.id}` });
+    }
+
+    // 2. Health check
+    if (pathname === "/" || pathname === "/health") {
+      return json({ status: "ok", app: "Vitalis TriageAI Backend Engine", mode: "Persistent SQLite File Database" });
+    }
+
+    // 3. Triage Queue API
     if (pathname === "/api/patients" && req.method === "GET") {
       return json(db.getAllPatients());
     }
 
-    // POST /api/patients
     if (pathname === "/api/patients" && req.method === "POST") {
       const intake = await readJsonBody(req);
-      console.log(`Processing intake for patient: ${intake.name}`);
-
+      if (!intake.name || !intake.complaint || !intake.pain_scale) {
+        return json({ error: "Missing required intake fields (name, complaint, pain_scale)" }, 400);
+      }
+      const vitals = intake.vitals || {};
       const ruleRes = evaluateClinicalRules({
-        vitals: intake.vitals || {},
-        pain_scale: intake.pain_scale || 1,
-        complaint: intake.complaint || "",
+        vitals,
+        pain_scale: intake.pain_scale,
+        complaint: intake.complaint,
         medical_history: intake.medical_history || "",
-        age: intake.age != null ? intake.age : null
+        age: intake.age || null
       });
-
       const aiRes = await evaluatePatientAI(intake);
       const record = db.addPatient(intake, aiRes, ruleRes);
       return json(record, 201);
     }
 
-    // GET /api/patients/:id
-    if (pathname.startsWith("/api/patients/") && !pathname.endsWith("/override") && req.method === "GET") {
-      const id = pathname.replace("/api/patients/", "");
-      const record = db.getPatient(id);
-      if (!record) return error("Patient record not found", 404);
+    // Single Patient Detail
+    if (pathname.startsWith("/api/patients/") && req.method === "GET") {
+      const parts = pathname.split("/");
+      const pId = parts[3];
+
+      if (parts[4] === "timeline") {
+        const timeline = dbEngine.getPatientTimeline(pId);
+        return json(timeline);
+      }
+
+      const record = db.getPatient(pId);
+      if (!record) return json({ error: "Patient not found" }, 404);
       return json(record);
     }
 
-    // PATCH /api/patients/:id/override
-    if (pathname.startsWith("/api/patients/") && pathname.endsWith("/override") && req.method === "PATCH") {
+    // Add Consultation Note / Diagnosis
+    if (pathname.startsWith("/api/patients/") && pathname.endsWith("/notes") && req.method === "POST") {
       const parts = pathname.split("/");
-      const id = parts[3];
+      const pId = parts[3];
       const body = await readJsonBody(req);
-      const { score, reason, staff_name } = body;
+      body.patient_id = pId;
+      const note = dbEngine.addConsultationNote(body);
+      return json(note, 201);
+    }
 
-      if (score == null || !reason) {
-        return error("score and reason are required for override", 422);
+    // Staff Override
+    if (pathname.startsWith("/api/patients/") && pathname.endsWith("/override") && req.method === "POST") {
+      const parts = pathname.split("/");
+      const pId = parts[3];
+      const reqBody = await readJsonBody(req);
+      if (!reqBody.score || !reqBody.reason) {
+        return json({ error: "Missing override score or reason" }, 400);
       }
-
-      const updatedRecord = db.applyOverride(id, { score, reason, staff_name });
-      if (!updatedRecord) return error("Patient record not found", 404);
-
-      console.log(`Staff override applied to ${id}: Score set to ${score}`);
-      return json(updatedRecord);
+      const record = db.applyOverride(pId, reqBody);
+      if (!record) return json({ error: "Patient not found" }, 404);
+      return json(record);
     }
 
-    // POST /api/surge
+    // Clear Queue
+    if (pathname === "/api/patients" && req.method === "DELETE") {
+      db.clearQueue();
+      return json({ status: "queue_cleared" });
+    }
+
+    // Surge Simulation
     if (pathname === "/api/surge" && req.method === "POST") {
-      runSurgeSimulationBatch().catch(err => console.error("Surge error:", err));
-      return json({ status: "Surge simulation started", patient_count: SURGE_PATIENTS.length });
+      runSurgeSimulationBatch().catch(console.error);
+      return json({ status: "surge_batch_started", count: SURGE_PATIENTS.length });
     }
 
-    // POST /api/clear
-    if (pathname === "/api/clear" && req.method === "POST") {
-      db.clear();
-      return json({ status: "Queue cleared" });
+    // Calendar & Appointments API
+    if (pathname === "/api/calendar-patients" && req.method === "GET") {
+      return json(calendarDb.getAllCalendarPatients());
     }
 
-    // Calendar endpoints
-    if (pathname === "/api/calendar" && req.method === "GET") {
-      const list = await calendarDb.getAllPatients();
-      return json(list);
-    }
-
-    if (pathname === "/api/calendar" && req.method === "POST") {
-      const body = await readJsonBody(req);
-      const record = await calendarDb.addPatient(body);
+    if (pathname === "/api/calendar-patients" && req.method === "POST") {
+      const intake = await readJsonBody(req);
+      if (!intake.name || !intake.problem || !intake.date) {
+        return json({ error: "Missing required fields (name, problem, date)" }, 400);
+      }
+      const record = calendarDb.addCalendarPatient(intake);
       return json(record, 201);
     }
 
-    if (pathname.startsWith("/api/calendar/") && req.method === "PUT") {
-      const id = pathname.replace("/api/calendar/", "");
-      const body = await readJsonBody(req);
-      const updated = await calendarDb.updatePatient(id, body);
-      if (!updated) return error("Calendar patient not found", 404);
-      return json(updated);
+    // Daily Hospital Stats
+    if (pathname === "/api/daily-stats" && req.method === "GET") {
+      const dateParam = url.searchParams.get("date") || new Date().toISOString().split("T")[0];
+      const stats = dbEngine.getDailyStats(dateParam);
+      return json(stats);
     }
 
-    if (pathname.startsWith("/api/calendar/") && req.method === "DELETE") {
-      const id = pathname.replace("/api/calendar/", "");
-      const success = await calendarDb.deletePatient(id);
-      if (!success) return error("Calendar patient not found", 404);
-      return json({ status: "success", message: "Calendar patient deleted" });
+    // Audit Logs
+    if (pathname === "/api/audit-logs" && req.method === "GET") {
+      const logs = dbEngine.getAuditLogs();
+      return json(logs);
     }
 
-    // POST /api/voice-analysis (Multi-symptom NLP voice transcript analysis)
-    if (pathname === "/api/voice-analysis" && req.method === "POST") {
+    // Voice Symptom NLP API
+    if (pathname === "/api/voice-symptom-analysis" && req.method === "POST") {
       const body = await readJsonBody(req);
-      const result = analyzeVoiceTranscriptNLP(body.transcript);
+      const text = body.transcript || body.text || "";
+      if (!text.trim()) {
+        return json({ error: "Transcript text is required" }, 400);
+      }
+      const result = analyzeVoiceTranscriptNLP(text);
       return json(result);
     }
 
-    // POST /api/voice-intake (Auto-creates patient record from voice transcript)
-    if (pathname === "/api/voice-intake" && req.method === "POST") {
+    // Facial Scan Diagnostic API
+    if (pathname === "/api/analyze-face" && req.method === "POST") {
       const body = await readJsonBody(req);
-      const transcript = body.transcript || "Patient voice intake";
-      const name = body.name || "Voice Intake Patient";
-
-      const intake = {
-        name,
-        complaint: transcript,
-        pain_scale: body.pain_scale || 5,
-        vitals: body.vitals || {}
-      };
-
-      const ruleRes = evaluateClinicalRules({
-        vitals: intake.vitals,
-        pain_scale: intake.pain_scale,
-        complaint: intake.complaint,
-        medical_history: "",
-        age: null
-      });
-
-      const aiRes = await evaluatePatientAI(intake);
-      const record = db.addPatient(intake, aiRes, ruleRes);
-      return json(record, 201);
-    }
-
-    // POST /api/face-analysis (Facial distress and FAST vision analysis across 8 visual observations)
-    if (pathname === "/api/face-analysis" && req.method === "POST") {
-      const body = await readJsonBody(req);
-      const result = await evaluateFaceImage(body);
+      const result = evaluateFaceImage(body);
       return json(result);
     }
 
-    // 404 Fallback
-    return error("Endpoint not found", 404);
+    return json({ error: "Route not found" }, 404);
   } catch (err) {
-    console.error("Server Request Error:", err);
-    return error(err.message || "Internal Server Error", 500);
+    console.error("Server error:", err);
+    return json({ error: "Internal Server Error", details: err.message }, 500);
   }
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Starting Vitalis / TriageAI Server on http://${HOST}:${PORT} (Voice & Face APIs active)`);
+  console.log(`Vitalis TriageAI Backend Engine running on http://${HOST}:${PORT}`);
+  console.log(`Persistent Database Engine Active.`);
 });

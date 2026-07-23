@@ -1,16 +1,11 @@
 /**
- * Storage Layer: In-Memory Triage Queue & JSON File Calendar Storage (Zero Dependencies)
+ * Storage Layer: File-backed Persistent Storage linked to db.js
  */
 
 const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
+const db = require("./db");
 
 class PatientStorage {
-  constructor() {
-    this.patients = new Map();
-  }
-
   addPatient(intake, aiReasoning, ruleCheck, createdAt = null) {
     const patientId = crypto.randomUUID().substring(0, 8);
     if (!createdAt) {
@@ -59,29 +54,18 @@ class PatientStorage {
       current_medications: intake.current_medications || null
     };
 
-    this.patients.set(patientId, record);
-    return record;
+    return db.addTriageRecord(record);
   }
 
   getAllPatients() {
-    const list = Array.from(this.patients.values());
-    list.sort((a, b) => {
-      if (b.effective_urgency_score !== a.effective_urgency_score) {
-        return b.effective_urgency_score - a.effective_urgency_score;
-      }
-      return b.created_at.localeCompare(a.created_at);
-    });
-    return list;
+    return db.getPatients();
   }
 
   getPatient(patientId) {
-    return this.patients.get(patientId) || null;
+    return db.getPatientById(patientId);
   }
 
   applyOverride(patientId, req) {
-    const patient = this.patients.get(patientId);
-    if (!patient) return null;
-
     const now = new Date();
     const overriddenAt = now.toISOString().replace("T", " ").substring(0, 19);
 
@@ -92,95 +76,25 @@ class PatientStorage {
       overridden_at: overriddenAt
     };
 
-    patient.is_overridden = true;
-    patient.override = overrideInfo;
-    patient.effective_urgency_score = req.score;
-
-    this.patients.set(patientId, patient);
-    return patient;
+    return db.applyOverride(patientId, overrideInfo);
   }
 
-  clear() {
-    this.patients.clear();
+  clearQueue() {
+    db.clearQueue();
   }
 }
 
 class CalendarStorage {
-  constructor(filePath = null) {
-    if (!filePath) {
-      filePath = path.join(__dirname, "calendar_patients.json");
-    }
-    this.filePath = filePath;
-    this._initFile();
+  getAllCalendarPatients() {
+    return db.getAppointments();
   }
 
-  _initFile() {
-    if (!fs.existsSync(this.filePath)) {
-      fs.writeFileSync(this.filePath, JSON.stringify([]), "utf8");
-    }
-  }
-
-  _readData() {
-    try {
-      const raw = fs.readFileSync(this.filePath, "utf8");
-      return JSON.parse(raw) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  _writeData(data) {
-    fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf8");
-  }
-
-  async getAllPatients() {
-    return this._readData();
-  }
-
-  async addPatient(patient) {
-    const patientId = crypto.randomUUID().substring(0, 8);
-    const data = this._readData();
-    const newRecord = {
-      id: patientId,
-      name: patient.name,
-      age: Number(patient.age),
-      gender: patient.gender,
-      problem: patient.problem,
-      date: patient.date
-    };
-    data.push(newRecord);
-    this._writeData(data);
-    return newRecord;
-  }
-
-  async updatePatient(id, patient) {
-    const data = this._readData();
-    const idx = data.findIndex(p => p.id === id);
-    if (idx === -1) return null;
-
-    data[idx] = {
-      id,
-      name: patient.name,
-      age: Number(patient.age),
-      gender: patient.gender,
-      problem: patient.problem,
-      date: patient.date
-    };
-    this._writeData(data);
-    return data[idx];
-  }
-
-  async deletePatient(id) {
-    const data = this._readData();
-    const filtered = data.filter(p => p.id !== id);
-    if (filtered.length === data.length) return false;
-
-    this._writeData(filtered);
-    return true;
+  addCalendarPatient(intake) {
+    return db.addAppointment(intake);
   }
 }
 
-const db = new PatientStorage();
-const calendarDb = new CalendarStorage();
-
-module.exports = { db, calendarDb };
+module.exports = {
+  PatientStorage,
+  CalendarStorage
+};

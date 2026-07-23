@@ -11,14 +11,33 @@ import VoiceAnalyzer from './components/VoiceAnalyzer';
 import FaceAnalyzer from './components/FaceAnalyzer';
 import ContactPage from './components/ContactPage';
 import LandingPage from './components/LandingPage';
+import AuthModal from './components/AuthModal';
+import DoctorDashboardView from './components/DoctorDashboardView';
+import PatientDashboardView from './components/PatientDashboardView';
+import AdminDashboardView from './components/AdminDashboardView';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
-  // 'landing' | 'triage' | 'analytics' | 'calendar' | 'voice' | 'face' | 'contact'
+  // 'landing' | 'triage' | 'analytics' | 'calendar' | 'voice' | 'face' | 'contact' | 'doctor_dashboard' | 'patient_dashboard' | 'admin_dashboard'
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
+
+  // Authentication & Current User State
+  const [currentUser, setCurrentUser] = useState({
+    id: 'usr_doc_1',
+    username: 'doctor',
+    name: 'Dr. Sarah Jenkins, MD',
+    role: 'doctor',
+    department: 'Cardiology / ER'
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Multi-Language & Audience View Mode States
+  const [patientLang, setPatientLang] = useState('en'); // 'en' | 'hi'
+  const [staffLang, setStaffLang] = useState('en'); // 'en' | 'hi'
+  const [audienceMode, setAudienceMode] = useState('clinician'); // 'clinician' | 'patient'
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,7 +58,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Play Web Audio API chime sound on surge / alerts
   const playAlertChime = () => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -57,9 +75,7 @@ export default function App() {
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       }
-    } catch (e) {
-      // Audio not permitted or unaccessible
-    }
+    } catch (e) {}
   };
 
   const loadPatients = useCallback(async () => {
@@ -100,7 +116,7 @@ export default function App() {
       resetForm();
       loadPatients();
     } catch (err) {
-      alert(`Error submitting intake: ${err.message}`);
+      alert(`Intake Submission Failed: ${err.message}`);
     } finally {
       setIsLoadingIntake(false);
     }
@@ -109,30 +125,27 @@ export default function App() {
   const handleTriggerSurge = async () => {
     setIsSurging(true);
     playAlertChime();
+    showToast('🚨 Emergency Surge Simulation Started!');
     try {
       await triggerSurge();
-      showToast('⚡ Surge simulation started! 9 patients entering triage queue...');
-      let count = 0;
-      const surgeInterval = setInterval(() => {
+      setTimeout(() => {
         loadPatients();
-        count++;
-        if (count > 5) clearInterval(surgeInterval);
-      }, 800);
+        setIsSurging(false);
+      }, 3500);
     } catch (err) {
-      alert(`Surge simulation error: ${err.message}`);
-    } finally {
-      setTimeout(() => setIsSurging(false), 3000);
+      alert(`Surge simulation failed: ${err.message}`);
+      setIsSurging(false);
     }
   };
 
   const handleClearQueue = async () => {
-    if (window.confirm('Clear all patient records from the queue?')) {
+    if (window.confirm('Are you sure you want to clear the entire triage queue?')) {
       try {
         await clearQueue();
-        showToast('🗑️ Triage queue cleared.');
+        showToast('🗑️ Triage Queue Cleared');
         loadPatients();
       } catch (err) {
-        alert(`Error clearing queue: ${err.message}`);
+        alert(`Clear queue failed: ${err.message}`);
       }
     }
   };
@@ -156,6 +169,16 @@ export default function App() {
 
   const handleViewChange = (view) => {
     setCurrentView(view);
+  };
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setShowAuthModal(false);
+    showToast(`🔑 Switched user to ${user.name} (${user.role.toUpperCase()})`);
+    if (user.role === 'doctor') setCurrentView('doctor_dashboard');
+    else if (user.role === 'patient') { setCurrentView('patient_dashboard'); setAudienceMode('patient'); }
+    else if (user.role === 'admin') setCurrentView('admin_dashboard');
+    else setCurrentView('triage');
   };
 
   // Show landing page if not entered yet
@@ -215,8 +238,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar with Language & View Mode Controls */}
       <Header
+        currentUser={currentUser}
+        onOpenAuth={() => setShowAuthModal(true)}
+        patientLang={patientLang}
+        onPatientLangChange={setPatientLang}
+        staffLang={staffLang}
+        onStaffLangChange={setStaffLang}
+        audienceMode={audienceMode}
+        onAudienceModeChange={setAudienceMode}
         onTriggerSurge={handleTriggerSurge}
         onClearQueue={handleClearQueue}
         isSurging={isSurging}
@@ -231,7 +262,11 @@ export default function App() {
         {currentView === 'triage' && (
           <div className="grid-layout">
             <aside className="column-intake">
-              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+              <PatientForm
+                onSubmit={handleIntakeSubmit}
+                isLoading={isLoadingIntake}
+                lang={audienceMode === 'patient' ? patientLang : staffLang}
+              />
             </aside>
             <section className="column-dashboard">
               <NurseDashboard
@@ -240,9 +275,37 @@ export default function App() {
                 onOpenProfile={(p) => setProfilePatient(p)}
                 onOpenReport={(p) => setReportPatient(p)}
                 lastUpdated={lastUpdated}
+                patientLang={patientLang}
+                staffLang={staffLang}
+                audienceMode={audienceMode}
               />
             </section>
           </div>
+        )}
+
+        {currentView === 'doctor_dashboard' && (
+          <DoctorDashboardView
+            patients={patients}
+            currentUser={currentUser}
+            onOpenOverride={(p) => setOverridePatient(p)}
+            onOpenReport={(p) => setReportPatient(p)}
+          />
+        )}
+
+        {currentView === 'patient_dashboard' && (
+          <PatientDashboardView
+            currentUser={currentUser}
+            patients={patients}
+            onOpenReport={(p) => setReportPatient(p)}
+            lang={patientLang}
+          />
+        )}
+
+        {currentView === 'admin_dashboard' && (
+          <AdminDashboardView
+            patients={patients}
+            currentUser={currentUser}
+          />
         )}
 
         {currentView === 'analytics' && (
@@ -275,6 +338,14 @@ export default function App() {
         )}
       </main>
 
+      {/* Auth & Role Switcher Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
+
       {/* Staff Override Modal Dialog */}
       {overridePatient && (
         <OverrideModal
@@ -291,6 +362,9 @@ export default function App() {
           onClose={() => setProfilePatient(null)}
           onOpenOverride={(p) => { setProfilePatient(null); setOverridePatient(p); }}
           onOpenReport={(p) => { setProfilePatient(null); setReportPatient(p); }}
+          patientLang={patientLang}
+          staffLang={staffLang}
+          audienceMode={audienceMode}
         />
       )}
 
@@ -299,6 +373,9 @@ export default function App() {
         <MedicalReportModal
           patient={reportPatient}
           onClose={() => setReportPatient(null)}
+          patientLang={patientLang}
+          staffLang={staffLang}
+          audienceMode={audienceMode}
         />
       )}
 
