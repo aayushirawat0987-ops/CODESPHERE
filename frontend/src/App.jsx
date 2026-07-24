@@ -5,6 +5,9 @@ import LoginPage from './components/LoginPage';
 import ProtectedComponent from './components/ProtectedComponent';
 import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
+import DoctorDashboard from './components/DoctorDashboard';
+import PharmacyDashboard from './components/PharmacyDashboard';
+import Sidebar from './components/Sidebar';
 import OverrideModal from './components/OverrideModal';
 import PatientProfileModal from './components/PatientProfileModal';
 import MedicalReportModal from './components/MedicalReportModal';
@@ -12,25 +15,24 @@ import AnalyticsView from './components/AnalyticsView';
 import CalendarView from './components/CalendarView';
 import VoiceAnalyzer from './components/VoiceAnalyzer';
 import FaceAnalyzer from './components/FaceAnalyzer';
+import ContactPage from './components/ContactPage';
+import DoctorDashboardView from './components/DoctorDashboardView';
+import PatientDashboardView from './components/PatientDashboardView';
+import AdminDashboardView from './components/AdminDashboardView';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
 export default function App() {
-  // App authentication state
-  const [currentUser, setCurrentUser] = useState(null); // null when unauthenticated
-  const [currentView, setCurrentView] = useState('triage'); // 'triage' | 'doctor_dashboard' | 'patient_dashboard' | 'admin_dashboard' | 'calendar' | 'analytics' | 'voice' | 'face'
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  // Multi-Language & Audience View Mode States
-  const [patientLang, setPatientLang] = useState('en');
-  const [staffLang, setStaffLang] = useState('en');
-  const [audienceMode, setAudienceMode] = useState('clinician');
+  // 'landing' | 'triage' | 'analytics' | 'calendar' | 'voice' | 'face' | 'contact'
+  const [appState, setAppState] = useState('landing');
+  const [currentView, setCurrentView] = useState('triage');
+  const [showContactOnLanding, setShowContactOnLanding] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingIntake, setIsLoadingIntake] = useState(false);
   const [isSurging, setIsSurging] = useState(false);
-  
+
   // Modals state
   const [overridePatient, setOverridePatient] = useState(null);
   const [profilePatient, setProfilePatient] = useState(null);
@@ -62,7 +64,7 @@ export default function App() {
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const loadPatients = useCallback(async () => {
@@ -100,7 +102,7 @@ export default function App() {
     try {
       const newRecord = await submitIntake(patientData);
       showToast(`✅ Intake processed for ${newRecord.name} (Assigned ID: ${newRecord.patient_id})`);
-      if (resetForm) resetForm();
+      resetForm();
       loadPatients();
     } catch (err) {
       alert(`Intake Submission Failed: ${err.message}`);
@@ -152,21 +154,12 @@ export default function App() {
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
     showToast(`🔑 Welcome, ${user.name} (${user.role.toUpperCase()})`);
-    
-    // Set default initial view based on role
-    if (user.role === 'doctor') {
-      setCurrentView('doc_dash');
-      setAudienceMode('clinician');
-    } else if (user.role === 'nurse') {
-      setCurrentView('nurse_dash');
-      setAudienceMode('clinician');
-    } else if (user.role === 'patient') {
-      setCurrentView('pat_home');
-      setAudienceMode('patient');
-    } else if (user.role === 'admin') {
-      setCurrentView('admin_dash');
-      setAudienceMode('clinician');
-    }
+
+    // Role-based initial view routing
+    if (user.role === 'doctor') setCurrentView('doctor_dashboard');
+    else if (user.role === 'patient') { setCurrentView('patient_dashboard'); setAudienceMode('patient'); }
+    else if (user.role === 'admin') setCurrentView('admin_dashboard');
+    else setCurrentView('triage');
   };
 
   const handleLogout = () => {
@@ -179,135 +172,79 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const mainMarginLeft = isSidebarCollapsed ? '70px' : '250px';
+
   return (
-    <div className="app-shell">
-      {/* Fixed Left Sidebar — Primary Navigation */}
-      <Sidebar
+    <div className="app-container">
+      {/* Emergency Surge Alert Banner */}
+      {isSurging && (
+        <div style={{
+          background: 'linear-gradient(90deg, #dc2626, #b91c1c, #dc2626)',
+          color: '#fff', padding: '10px 20px', textAlign: 'center', fontWeight: 900,
+          fontSize: '0.9rem', letterSpacing: '1px', textTransform: 'uppercase',
+          boxShadow: '0 4px 20px rgba(220,38,38,0.5)', animation: 'pulse 1s infinite'
+        }}>
+          🚨 EMERGENCY SURGE IN PROGRESS — 9 HIGH-ACUITY PATIENTS ARRIVING IN QUEUE
+        </div>
+      )}
+
+      {/* Top Navigation Bar */}
+      <Header
+        onTriggerSurge={handleTriggerSurge}
+        onClearQueue={handleClearQueue}
+        isSurging={isSurging}
+        isRefreshing={isRefreshing}
         currentView={currentView}
-        onViewChange={setCurrentView}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onViewChange={handleViewChange}
+        onGoHome={() => setAppState('landing')}
       />
 
-      {/* Right side: Header + Content */}
-      <div className={`app-main-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {/* Emergency Surge Alert Banner */}
-        {isSurging && (
-          <div className="surge-alert-banner">
-            🚨 EMERGENCY SURGE IN PROGRESS — HIGH-ACUITY PATIENTS ARRIVING
+      {/* Main Workspace Views */}
+      <main className="main-content">
+        {currentView === 'triage' && (
+          <div className="grid-layout">
+            <aside className="column-intake">
+              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+            </aside>
+            <section className="column-dashboard">
+              <NurseDashboard
+                patients={patients}
+                onOpenOverride={(p) => setOverridePatient(p)}
+                onOpenProfile={(p) => setProfilePatient(p)}
+                onOpenReport={(p) => setReportPatient(p)}
+                lastUpdated={lastUpdated}
+              />
+            </section>
           </div>
         )}
 
-        {/* Top Header */}
-        <Header
-          currentUser={currentUser}
-          onOpenAuth={handleLogout}
-          audienceMode={audienceMode}
-          onAudienceModeChange={setAudienceMode}
-          onTriggerSurge={handleTriggerSurge}
-          onClearQueue={handleClearQueue}
-          isSurging={isSurging}
-          isRefreshing={isRefreshing}
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          isSidebarCollapsed={isSidebarCollapsed}
-        />
-
-      {/* Main Workspace Area */}
-      <main className="main-content" style={{ marginLeft: mainMarginLeft, transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)', padding: '24px' }}>
-        
-        {/* View 1: Triage Dashboard & Queue */}
-        {currentView === 'triage' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['nurse', 'doctor', 'admin', 'patient']} onRedirectLogin={handleLogout}>
-            <div className="grid-layout">
-              <aside className="column-intake">
-                <PatientForm
-                  onSubmit={handleIntakeSubmit}
-                  isLoading={isLoadingIntake}
-                  lang={audienceMode === 'patient' ? patientLang : staffLang}
-                />
-              </aside>
-              <section className="column-dashboard">
-                <NurseDashboard
-                  patients={patients}
-                  onOpenOverride={(p) => setOverridePatient(p)}
-                  onOpenProfile={(p) => setProfilePatient(p)}
-                  onOpenReport={(p) => setReportPatient(p)}
-                  lastUpdated={lastUpdated}
-                  patientLang={patientLang}
-                  staffLang={staffLang}
-                  audienceMode={audienceMode}
-                />
-              </section>
-            </div>
-          </ProtectedComponent>
-        )}
-
-        {/* View 2: Doctor Workspace */}
-        {currentView === 'doctor_dashboard' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'admin']} onRedirectLogin={handleLogout}>
-            <DoctorDashboardView
-              patients={patients}
-              currentUser={currentUser}
-              onOpenOverride={(p) => setOverridePatient(p)}
-              onOpenReport={(p) => setReportPatient(p)}
-            />
-          </ProtectedComponent>
-        )}
-
-        {/* View 3: Patient Personal Portal */}
-        {currentView === 'patient_dashboard' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['patient', 'doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
-            <PatientDashboardView
-              currentUser={currentUser}
-              patients={patients}
-              onOpenReport={(p) => setReportPatient(p)}
-              lang={patientLang}
-            />
-          </ProtectedComponent>
-        )}
-
-        {/* View 4: Admin Settings & Audit Center */}
-        {currentView === 'admin_dashboard' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['admin']} onRedirectLogin={handleLogout}>
-            <AdminDashboardView
-              patients={patients}
-              currentUser={currentUser}
-            />
-          </ProtectedComponent>
-        )}
-
-        {/* View 5: Analytics */}
         {currentView === 'analytics' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin']} onRedirectLogin={handleLogout}>
-            <AnalyticsView patients={patients} />
-          </ProtectedComponent>
+          <AnalyticsView patients={patients} />
         )}
 
-        {/* View 6: Calendar */}
         {currentView === 'calendar' && (
-          <ProtectedComponent currentUser={currentUser} allowedRoles={['doctor', 'nurse', 'admin', 'patient']} onRedirectLogin={handleLogout}>
-            <CalendarView
-              patients={calendarPatients}
-              onPatientsUpdated={loadCalendarPatients}
-            />
-          </ProtectedComponent>
+          <CalendarView
+            patients={calendarPatients}
+            onPatientsUpdated={loadCalendarPatients}
+          />
         )}
 
-        {/* View 7: Voice AI */}
         {currentView === 'voice' && (
           <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <VoiceAnalyzer />
           </div>
         )}
 
-        {/* View 8: Face Diagnostic Scanner */}
         {currentView === 'face' && (
           <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
             <FaceAnalyzer />
           </div>
+        )}
+
+        {currentView === 'contact' && (
+          <ContactPage
+            onSubmitSuccess={(message) => showToast(message)}
+          />
         )}
       </main>
 
@@ -342,7 +279,7 @@ export default function App() {
         />
       )}
 
-      {/* Toast */}
+      {/* Notification Toast Banner */}
       {toastMessage && (
         <div className="toast-banner">
           <span>{toastMessage}</span>
