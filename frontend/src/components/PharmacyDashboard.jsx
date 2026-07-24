@@ -5,10 +5,15 @@ import UrgencyBadge from './UrgencyBadge';
 export default function PharmacyDashboard({ patients, onRefresh, showToast, lastUpdated }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
+  const [dismissedIds, setDismissedIds] = useState(() => new Set());
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
   const pharmacyPatients = useMemo(
-    () => patients.filter((p) => p.prescription && p.treatment_status !== 'Treatment Completed'),
-    [patients]
+    () =>
+      patients.filter(
+        (p) => p.prescription && p.treatment_status !== 'Treatment Completed' && !dismissedIds.has(p.id)
+      ),
+    [patients, dismissedIds]
   );
 
   const filteredPatients = useMemo(() => {
@@ -34,18 +39,43 @@ export default function PharmacyDashboard({ patients, onRefresh, showToast, last
     ready: 'Ready for Pickup'
   };
 
-  const visiblePatients = filteredPatients.filter((patient) => {
-    if (activeTab === 'completed') return patient.treatment_status === 'Treatment Completed';
-    return patient.treatment_status === statusLabel[activeTab];
-  });
+  const visiblePatients = filteredPatients.filter(
+    (patient) => patient.treatment_status === statusLabel[activeTab]
+  );
 
   const updateStatus = async (patientId, newStatus) => {
+    // Dispensing closes out this patient's pharmacy visit entirely — remove the row
+    // immediately (optimistic) so the pharmacist can move straight to the next patient.
+    const isDispensing = newStatus === 'Dispensed';
+
+    if (isDispensing) {
+      setDismissedIds((prev) => new Set(prev).add(patientId));
+    } else {
+      setBusyIds((prev) => new Set(prev).add(patientId));
+    }
+
     try {
       await updateMedicineStatus(patientId, { status: newStatus });
-      showToast(`Pharmacy updated to ${newStatus}.`);
+      showToast(
+        isDispensing ? 'Medicine dispensed. Treatment completed.' : `Pharmacy updated to ${newStatus}.`
+      );
       onRefresh();
     } catch (error) {
       showToast(`Pharmacy update failed: ${error.message}`);
+      // Roll back the optimistic removal so the patient doesn't silently vanish on failure
+      if (isDispensing) {
+        setDismissedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(patientId);
+          return next;
+        });
+      }
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(patientId);
+        return next;
+      });
     }
   };
 
@@ -62,7 +92,7 @@ export default function PharmacyDashboard({ patients, onRefresh, showToast, last
         <div className="meta-pill">Updated {lastUpdated || 'just now'}</div>
       </div>
 
-      <div className="row summary-grid">
+      <div className="summary-grid">
         <div className="summary-card summary-blue">
           <span>Pending Orders</span>
           <strong>{counts.pending}</strong>
@@ -100,6 +130,7 @@ export default function PharmacyDashboard({ patients, onRefresh, showToast, last
                 onClick={() => setActiveTab(tab)}
               >
                 {tab === 'pending' ? 'Ordered' : tab === 'preparing' ? 'Preparing' : 'Ready'}
+                {' '}({counts[tab]})
               </button>
             ))}
           </div>
@@ -112,31 +143,54 @@ export default function PharmacyDashboard({ patients, onRefresh, showToast, last
               <p>No pharmacy orders match the current filter.</p>
             </div>
           ) : (
-            visiblePatients.map((patient) => (
-              <div key={patient.id} className="table-row pharmacy-row">
-                <div>
-                  <div className="patient-name">{patient.name}</div>
-                  <div className="patient-meta">{patient.prescription?.medicine_name || 'No medicine recorded'}</div>
+            visiblePatients.map((patient) => {
+              const rx = patient.prescription || {};
+              const isBusy = busyIds.has(patient.id);
+              return (
+                <div key={patient.id} className="table-row pharmacy-row">
+                  <div>
+                    <div className="patient-name">{patient.name}</div>
+                    <div className="patient-meta">
+                      {rx.medicine_name || 'No medicine recorded'}
+                      {rx.dosage ? ` • ${rx.dosage}` : ''}
+                      {rx.frequency ? ` • ${rx.frequency}` : ''}
+                      {rx.duration ? ` • ${rx.duration}` : ''}
+                    </div>
+                    {rx.notes && <div className="patient-meta pharmacy-rx-notes">📝 {rx.notes}</div>}
+                    {rx.follow_up && <div className="patient-meta pharmacy-rx-notes">📅 Follow-up: {rx.follow_up}</div>}
+                  </div>
+                  <div className="patient-right">
+                    <UrgencyBadge score={patient.effective_urgency_score} compact />
+                    <span className={`status-pill status-${patient.treatment_status.replace(/\s+/g, '-').toLowerCase()}`}>
+                      {patient.treatment_status}
+                    </span>
+                  </div>
+                  <div className="pharmacy-actions">
+                    <button
+                      className="btn btn-secondary-ghost"
+                      disabled={isBusy}
+                      onClick={() => updateStatus(patient.id, 'Preparing Medicines')}
+                    >
+                      Preparing Medicines
+                    </button>
+                    <button
+                      className="btn btn-secondary-ghost"
+                      disabled={isBusy}
+                      onClick={() => updateStatus(patient.id, 'Ready for Pickup')}
+                    >
+                      Medicine Ready
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      disabled={isBusy}
+                      onClick={() => updateStatus(patient.id, 'Dispensed')}
+                    >
+                      Medicine Dispensed
+                    </button>
+                  </div>
                 </div>
-                <div className="patient-right">
-                  <UrgencyBadge score={patient.effective_urgency_score} compact />
-                  <span className={`status-pill status-${patient.treatment_status.replace(/\s+/g, '-').toLowerCase()}`}>
-                    {patient.treatment_status}
-                  </span>
-                </div>
-                <div className="pharmacy-actions">
-                  <button className="btn btn-secondary-ghost" onClick={() => updateStatus(patient.id, 'Preparing Medicines')}>
-                    Preparing Medicines
-                  </button>
-                  <button className="btn btn-secondary-ghost" onClick={() => updateStatus(patient.id, 'Ready for Pickup')}>
-                    Medicine Ready
-                  </button>
-                  <button className="btn btn-primary" onClick={() => updateStatus(patient.id, 'Dispensed')}>
-                    Medicine Dispensed
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

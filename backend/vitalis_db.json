@@ -217,6 +217,126 @@
   "appointments": [],
   "audit_logs": [
     {
+      "id": "log_1784892577374_9qak",
+      "timestamp": "2026-07-24 11:29:37",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784892354248_66tg",
+      "timestamp": "2026-07-24 11:25:54",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784892267847_5hdv",
+      "timestamp": "2026-07-24 11:24:27",
+      "date": "2026-07-24",
+      "userId": "usr_nurse_1",
+      "username": "nurse",
+      "role": "nurse",
+      "action": "USER_LOGIN",
+      "details": "Nurse Mary Rivera, RN logged in"
+    },
+    {
+      "id": "log_1784891744611_9026",
+      "timestamp": "2026-07-24 11:15:44",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784891719281_e1dt",
+      "timestamp": "2026-07-24 11:15:19",
+      "date": "2026-07-24",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
+      "id": "log_1784891694229_bg0f",
+      "timestamp": "2026-07-24 11:14:54",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784890172957_uqmb",
+      "timestamp": "2026-07-24 10:49:32",
+      "date": "2026-07-24",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
+      "id": "log_1784890158393_rjo8",
+      "timestamp": "2026-07-24 10:49:18",
+      "date": "2026-07-24",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
+      "id": "log_1784890148784_nhq0",
+      "timestamp": "2026-07-24 10:49:08",
+      "date": "2026-07-24",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
+      "id": "log_1784889879237_f353",
+      "timestamp": "2026-07-24 10:44:39",
+      "date": "2026-07-24",
+      "userId": "usr_nurse_1",
+      "username": "nurse",
+      "role": "nurse",
+      "action": "USER_LOGIN",
+      "details": "Nurse Mary Rivera, RN logged in"
+    },
+    {
+      "id": "log_1784889864542_6262",
+      "timestamp": "2026-07-24 10:44:24",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784889804569_nu7c",
+      "timestamp": "2026-07-24 10:43:24",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
       "id": "log_1784886713124_vlt9",
       "timestamp": "2026-07-24 09:51:53",
       "date": "2026-07-24",
