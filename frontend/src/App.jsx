@@ -27,6 +27,7 @@ export default function App() {
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
+  const [backendError, setBackendError] = useState(false);
 
   // Auth & user state
   const [currentUser, setCurrentUser] = useState(null);
@@ -84,8 +85,12 @@ export default function App() {
       const data = await fetchPatients();
       setPatients(data);
       setLastUpdated(new Date().toLocaleTimeString());
+      setBackendError(false);
     } catch (err) {
       console.error('Failed polling patients:', err);
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError') || err.message.includes('fetch')) {
+        setBackendError(true);
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -189,7 +194,7 @@ export default function App() {
       <>
         <LandingPage
           onEnter={() => setAppState('app')}
-          onContact={() => { setAppState('app'); setCurrentView('contact'); }}
+          onContact={() => { setAppState('contact'); setCurrentView('contact'); }}
         />
         {toastMessage && (
           <div className="toast-banner">
@@ -197,6 +202,67 @@ export default function App() {
           </div>
         )}
       </>
+    );
+  }
+
+  // Contact page accessible without login
+  if (appState === 'contact' && !currentUser) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f0f7ff 0%, #e0f0ff 50%, #f0f7ff 100%)',
+        padding: '0'
+      }}>
+        {/* Simple Header for Contact Page */}
+        <header style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 32px',
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(0,150,199,0.1)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+               onClick={() => setAppState('landing')}>
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #0096c7, #0077b6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 900, fontSize: '1.1rem', color: '#fff'
+            }}>V</div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.5px' }}>
+                VITALIS <span style={{ color: '#0096c7' }}>/ TriageAI</span>
+              </h2>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={() => setAppState('landing')}
+              style={{
+                padding: '8px 18px', borderRadius: '10px', border: '1px solid #cbd5e1',
+                background: '#fff', color: '#334155', fontWeight: 700, fontSize: '0.85rem',
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >← Back to Home</button>
+            <button
+              onClick={() => setAppState('app')}
+              style={{
+                padding: '8px 18px', borderRadius: '10px', border: 'none',
+                background: 'linear-gradient(135deg, #0096c7, #0077b6)', color: '#fff',
+                fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >Open Dashboard →</button>
+          </div>
+        </header>
+        <div style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 20px' }}>
+          <ContactPage onSubmitSuccess={(message) => showToast(message)} />
+        </div>
+        {toastMessage && (
+          <div className="toast-banner">
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -250,6 +316,41 @@ export default function App() {
 
         {/* Main Workspace Views */}
         <main className="main-content">
+          {/* Backend Connection Error Banner */}
+          {backendError && (
+            <div style={{
+              background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+              border: '1px solid #f59e0b',
+              borderRadius: '14px',
+              padding: '20px 24px',
+              margin: '0 0 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              boxShadow: '0 4px 12px rgba(245,158,11,0.15)',
+              animation: 'fadeIn 0.3s ease'
+            }}>
+              <div style={{ fontSize: '2rem' }}>⚠️</div>
+              <div>
+                <div style={{ fontWeight: 800, color: '#92400e', fontSize: '0.95rem', marginBottom: '4px' }}>
+                  Backend Server Not Reachable
+                </div>
+                <div style={{ color: '#78350f', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                  Could not connect to the backend at <code style={{ background: 'rgba(0,0,0,0.08)', padding: '2px 6px', borderRadius: '4px' }}>http://localhost:8000</code>.
+                  Please start the backend server by running <code style={{ background: 'rgba(0,0,0,0.08)', padding: '2px 6px', borderRadius: '4px' }}>node server.js</code> in the <strong>backend</strong> directory.
+                </div>
+              </div>
+              <button
+                onClick={() => { setBackendError(false); loadPatients(); }}
+                style={{
+                  padding: '8px 16px', borderRadius: '10px', border: 'none',
+                  background: '#f59e0b', color: '#fff', fontWeight: 700,
+                  fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(245,158,11,0.3)'
+                }}
+              >🔄 Retry</button>
+            </div>
+          )}
           {currentView === 'triage' && (
             <div className="grid-layout">
               <aside className="column-intake">
