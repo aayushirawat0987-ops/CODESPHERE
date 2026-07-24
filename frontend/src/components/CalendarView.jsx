@@ -9,8 +9,7 @@ const DOCTORS_ON_DUTY = [
 
 export default function CalendarView({ patients, onPatientsUpdated }) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState('month'); // 'month' | 'week' | 'day'
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [showModal, setShowModal] = useState(false);
@@ -67,7 +66,7 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this appointment?")) {
+    if (window.confirm('Delete this appointment?')) {
       try {
         await deleteCalendarPatient(id);
         onPatientsUpdated();
@@ -77,56 +76,47 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
     }
   };
 
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditingPatient(null);
-    setFormData({ name: '', age: '', gender: 'Male', problem: '', doctor: 'Dr. Sarah Chen', time: '10:00 AM' });
-  };
-
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* Header & Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      {/* Calendar Header Controls */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>📅</span> Clinical Appointment & Shift Calendar
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            📅 Hospital Calendar & Appointments
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '4px 0 0' }}>
-            Schedule patient intake follow-ups, ER consults, and doctor shift assignments
-          </p>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            Schedule and manage doctor consultations by date
+          </span>
         </div>
 
-        {/* View Mode Switcher */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '4px' }}>
-            {['month', 'week', 'day'].map(mode => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                style={{
-                  padding: '6px 14px', borderRadius: '8px', border: 'none', background: viewMode === mode ? '#0096c7' : 'none',
-                  color: viewMode === mode ? '#fff' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', textTransform: 'capitalize'
-                }}
-              >
-                {mode} View
-              </button>
-            ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '4px 10px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>📅 Target Date:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              onClick={e => e.target.showPicker && e.target.showPicker()}
+              style={{ background: 'transparent', border: 'none', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer' }}
+            />
           </div>
 
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button className="btn btn-secondary-ghost" onClick={prevMonth} style={{ padding: '6px 12px' }}>&lt;</button>
-            <h3 style={{ margin: '0 10px', fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </h3>
-            <button className="btn btn-secondary-ghost" onClick={nextMonth} style={{ padding: '6px 12px' }}>&gt;</button>
-          </div>
+          <button className="btn btn-secondary-ghost" onClick={prevMonth}>◀ Prev</button>
+          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center' }}>
+            {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </span>
+          <button className="btn btn-secondary-ghost" onClick={nextMonth}>Next ▶</button>
+
+          <button className="btn btn-primary" onClick={() => { setSelectedDate(new Date().toISOString().split('T')[0]); setShowModal(true); setIsEditing(true); }}>
+            + Book Appointment
+          </button>
         </div>
       </div>
 
       {/* Doctor Availability Bar */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '20px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
+        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', display: 'block' }}>
           Attending Physicians & Specialist Availability
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
@@ -159,18 +149,19 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
             const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dayPatients = getPatientsForDate(dateStr);
             const hasPatients = dayPatients.length > 0;
+            const isSelected = selectedDate === dateStr;
             
             return (
               <div 
                 key={day} 
                 onClick={() => handleDateClick(dateStr)}
                 style={{
-                  border: `1px solid ${hasPatients ? '#0096c7' : 'var(--border-color)'}`,
+                  border: `2px solid ${isSelected ? '#0096c7' : hasPatients ? '#0096c7' : 'var(--border-color)'}`,
                   borderRadius: '10px',
                   minHeight: '90px',
                   padding: '10px',
                   cursor: 'pointer',
-                  backgroundColor: hasPatients ? 'rgba(0, 150, 199, 0.06)' : '#f8fafc',
+                  backgroundColor: isSelected ? 'rgba(0, 150, 199, 0.15)' : hasPatients ? 'rgba(0, 150, 199, 0.06)' : '#f8fafc',
                   transition: 'all 0.2s',
                   display: 'flex',
                   flexDirection: 'column',
@@ -178,9 +169,10 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
                 }}
               >
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{day}</div>
+                
                 {hasPatients && (
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0096c7', background: 'rgba(0,150,199,0.12)', padding: '4px 8px', borderRadius: '6px', textAlign: 'center' }}>
-                    {dayPatients.length} Appointment{dayPatients.length > 1 ? 's' : ''}
+                  <div style={{ background: '#0096c7', color: '#fff', borderRadius: '12px', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 800, textAlign: 'center' }}>
+                    {dayPatients.length} Consult{dayPatients.length > 1 ? 's' : ''}
                   </div>
                 )}
               </div>
@@ -189,12 +181,14 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
         </div>
       </div>
 
-      {/* Modal Dialog for Date Details / Add / Edit */}
+      {/* Appointment Modal */}
       {showModal && (
-        <div className="modal-backdrop" style={{ zIndex: 1100 }}>
-          <div className="modal-card" style={{ maxWidth: '640px', width: '92vw', borderRadius: '16px' }}>
-            <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Appointments for {selectedDate}</h3>
+        <div className="modal-backdrop" style={{ zIndex: 1300 }}>
+          <div className="modal-card" style={{ maxWidth: '520px', width: '92vw', padding: '0', borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', background: '#0f172a', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>
+                📅 Appointments for {selectedDate}
+              </h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
             </div>
             
@@ -215,7 +209,7 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto' }}>
                     {patientsForSelectedDate.length === 0 ? (
-                      <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>No appointments scheduled for this date.</p>
+                      <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '20px' }}>No appointments scheduled for {selectedDate}. Click "+ Schedule Consult" above to add one.</p>
                     ) : (
                       patientsForSelectedDate.map(p => (
                         <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
@@ -239,6 +233,19 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
                   <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800 }}>{editingPatient ? 'Edit Appointment' : 'Schedule New Consult'}</h4>
                   
                   <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Selected Date</label>
+                    <input
+                      type="date"
+                      className="input-field"
+                      value={selectedDate}
+                      onChange={e => setSelectedDate(e.target.value)}
+                      onClick={e => e.target.showPicker && e.target.showPicker()}
+                      style={{ cursor: 'pointer' }}
+                      required
+                    />
+                  </div>
+
+                  <div>
                     <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Patient Full Name</label>
                     <input required className="input-field" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                   </div>
@@ -248,25 +255,24 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
                       <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Age</label>
                       <input required className="input-field" type="number" min="0" max="150" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} />
                     </div>
-                    
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Gender</label>
-                      <select required className="input-field" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                      <select className="input-field" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Clinical Problem / Specialty</label>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Chief Problem / Complaint</label>
                     <input required className="input-field" type="text" value={formData.problem} onChange={e => setFormData({...formData, problem: e.target.value})} />
                   </div>
-                  
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Appointment</button>
-                    <button type="button" className="btn btn-secondary-ghost" onClick={cancelEdit}>Cancel</button>
+
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                    <button type="button" className="btn btn-secondary-ghost" onClick={() => setIsEditing(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Save Appointment</button>
                   </div>
                 </form>
               )}
@@ -274,6 +280,7 @@ export default function CalendarView({ patients, onPatientsUpdated }) {
           </div>
         </div>
       )}
+
     </div>
   );
 }

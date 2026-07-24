@@ -183,18 +183,20 @@ export default function PatientDashboardView({ currentUser, patients, onOpenRepo
             
             <form onSubmit={handleBookAppt} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Appointment Date</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Appointment Date</label>
                 <input
                   type="date"
                   className="input-field"
                   value={apptDate}
                   onChange={e => setApptDate(e.target.value)}
+                  onClick={e => e.target.showPicker && e.target.showPicker()}
+                  style={{ cursor: 'pointer' }}
                   required
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Preferred Time</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Preferred Time</label>
                 <select className="input-field" value={apptTime} onChange={e => setApptTime(e.target.value)}>
                   <option value="09:00 AM">09:00 AM</option>
                   <option value="10:30 AM">10:30 AM</option>
@@ -204,7 +206,7 @@ export default function PatientDashboardView({ currentUser, patients, onOpenRepo
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700 }}>Reason / Chief Complaint</label>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Reason / Chief Complaint</label>
                 <input
                   type="text"
                   className="input-field"
