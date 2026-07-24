@@ -7,7 +7,6 @@ import PatientForm from './components/PatientForm';
 import NurseDashboard from './components/NurseDashboard';
 import DoctorDashboard from './components/DoctorDashboard';
 import PharmacyDashboard from './components/PharmacyDashboard';
-import Sidebar from './components/Sidebar';
 import OverrideModal from './components/OverrideModal';
 import PatientProfileModal from './components/PatientProfileModal';
 import MedicalReportModal from './components/MedicalReportModal';
@@ -19,6 +18,7 @@ import ContactPage from './components/ContactPage';
 import DoctorDashboardView from './components/DoctorDashboardView';
 import PatientDashboardView from './components/PatientDashboardView';
 import AdminDashboardView from './components/AdminDashboardView';
+import LandingPage from './components/LandingPage';
 import { fetchPatients, submitIntake, applyOverride, triggerSurge, clearQueue, fetchCalendarPatients } from './api';
 import './App.css';
 
@@ -27,6 +27,17 @@ export default function App() {
   const [appState, setAppState] = useState('landing');
   const [currentView, setCurrentView] = useState('triage');
   const [showContactOnLanding, setShowContactOnLanding] = useState(false);
+
+  // Auth & user state
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Sidebar state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Language & audience mode
+  const [patientLang, setPatientLang] = useState('en');
+  const [staffLang, setStaffLang] = useState('en');
+  const [audienceMode, setAudienceMode] = useState('clinician');
 
   const [patients, setPatients] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -97,6 +108,10 @@ export default function App() {
     return () => clearInterval(interval);
   }, [loadPatients, loadCalendarPatients, currentUser]);
 
+  const handleViewChange = (view) => {
+    setCurrentView(view);
+  };
+
   const handleIntakeSubmit = async (patientData, resetForm) => {
     setIsLoadingIntake(true);
     try {
@@ -164,8 +179,26 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setAppState('landing');
     showToast('🚪 Logged out successfully');
   };
+
+  // If on landing page, show LandingPage
+  if (appState === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onEnter={() => setAppState('app')}
+          onContact={() => { setAppState('app'); setCurrentView('contact'); }}
+        />
+        {toastMessage && (
+          <div className="toast-banner">
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // If unauthenticated, show modern hospital login page
   if (!currentUser) {
@@ -188,65 +221,94 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Navigation Bar */}
-      <Header
-        onTriggerSurge={handleTriggerSurge}
-        onClearQueue={handleClearQueue}
-        isSurging={isSurging}
-        isRefreshing={isRefreshing}
+      {/* Sidebar Navigation */}
+      <Sidebar
         currentView={currentView}
         onViewChange={handleViewChange}
-        onGoHome={() => setAppState('landing')}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      {/* Main Workspace Views */}
-      <main className="main-content">
-        {currentView === 'triage' && (
-          <div className="grid-layout">
-            <aside className="column-intake">
-              <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
-            </aside>
-            <section className="column-dashboard">
-              <NurseDashboard
-                patients={patients}
-                onOpenOverride={(p) => setOverridePatient(p)}
-                onOpenProfile={(p) => setProfilePatient(p)}
-                onOpenReport={(p) => setReportPatient(p)}
-                lastUpdated={lastUpdated}
-              />
-            </section>
-          </div>
-        )}
+      {/* Top Navigation Bar */}
+      <div style={{ marginLeft: mainMarginLeft, transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <Header
+          currentUser={currentUser}
+          onOpenAuth={handleLogout}
+          audienceMode={audienceMode}
+          onAudienceModeChange={setAudienceMode}
+          onTriggerSurge={handleTriggerSurge}
+          onClearQueue={handleClearQueue}
+          isSurging={isSurging}
+          isRefreshing={isRefreshing}
+          currentView={currentView}
+          onViewChange={handleViewChange}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onGoHome={() => setAppState('landing')}
+        />
 
-        {currentView === 'analytics' && (
-          <AnalyticsView patients={patients} />
-        )}
+        {/* Main Workspace Views */}
+        <main className="main-content">
+          {currentView === 'triage' && (
+            <div className="grid-layout">
+              <aside className="column-intake">
+                <PatientForm onSubmit={handleIntakeSubmit} isLoading={isLoadingIntake} />
+              </aside>
+              <section className="column-dashboard">
+                <NurseDashboard
+                  patients={patients}
+                  onOpenOverride={(p) => setOverridePatient(p)}
+                  onOpenProfile={(p) => setProfilePatient(p)}
+                  onOpenReport={(p) => setReportPatient(p)}
+                  lastUpdated={lastUpdated}
+                />
+              </section>
+            </div>
+          )}
 
-        {currentView === 'calendar' && (
-          <CalendarView
-            patients={calendarPatients}
-            onPatientsUpdated={loadCalendarPatients}
-          />
-        )}
+          {currentView === 'doctor_dashboard' && (
+            <DoctorDashboardView patients={patients} />
+          )}
 
-        {currentView === 'voice' && (
-          <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <VoiceAnalyzer />
-          </div>
-        )}
+          {currentView === 'patient_dashboard' && (
+            <PatientDashboardView currentUser={currentUser} patients={patients} />
+          )}
 
-        {currentView === 'face' && (
-          <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
-            <FaceAnalyzer />
-          </div>
-        )}
+          {currentView === 'admin_dashboard' && (
+            <AdminDashboardView />
+          )}
 
-        {currentView === 'contact' && (
-          <ContactPage
-            onSubmitSuccess={(message) => showToast(message)}
-          />
-        )}
-      </main>
+          {currentView === 'analytics' && (
+            <AnalyticsView patients={patients} />
+          )}
+
+          {currentView === 'calendar' && (
+            <CalendarView
+              patients={calendarPatients}
+              onPatientsUpdated={loadCalendarPatients}
+            />
+          )}
+
+          {currentView === 'voice' && (
+            <div className="card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+              <VoiceAnalyzer />
+            </div>
+          )}
+
+          {currentView === 'face' && (
+            <div className="card" style={{ maxWidth: '950px', margin: '0 auto' }}>
+              <FaceAnalyzer />
+            </div>
+          )}
+
+          {currentView === 'contact' && (
+            <ContactPage
+              onSubmitSuccess={(message) => showToast(message)}
+            />
+          )}
+        </main>
+      </div>
 
       {/* Modals */}
       {overridePatient && (

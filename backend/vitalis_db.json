@@ -217,6 +217,26 @@
   "appointments": [],
   "audit_logs": [
     {
+      "id": "log_1784886713124_vlt9",
+      "timestamp": "2026-07-24 09:51:53",
+      "date": "2026-07-24",
+      "userId": "usr_doc_1",
+      "username": "doctor",
+      "role": "doctor",
+      "action": "USER_LOGIN",
+      "details": "Dr. Sarah Jenkins, MD logged in"
+    },
+    {
+      "id": "log_1784886644568_a6bf",
+      "timestamp": "2026-07-24 09:50:44",
+      "date": "2026-07-24",
+      "userId": "usr_admin_1",
+      "username": "admin",
+      "role": "admin",
+      "action": "USER_LOGIN",
+      "details": "Admin Supervisor Alex Vance logged in"
+    },
+    {
       "id": "log_1784826088847_o0v8",
       "timestamp": "2026-07-23 17:01:28",
       "date": "2026-07-23",
